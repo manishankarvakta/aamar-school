@@ -128,18 +128,11 @@ export async function getStaff(aamarId: string = '234567') {
       include: {
         user: {
           include: {
-            profile: true
-          }
-        },
-        branch: {
-          include: {
-            school: true
-          }
-        },
-        attendance: {
-          where: {
-            date: {
-              gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+            profile: true,
+            branch: {
+              include: {
+                school: true
+              }
             }
           }
         }
@@ -154,7 +147,6 @@ export async function getStaff(aamarId: string = '234567') {
     const formattedStaff = staff.map(member => ({
       id: member.id,
       staffId: member.id,
-      employeeId: member.employeeId,
       name: `${member.user.firstName} ${member.user.lastName}`,
       firstName: member.user.firstName,
       lastName: member.user.lastName,
@@ -166,21 +158,18 @@ export async function getStaff(aamarId: string = '234567') {
       nationality: member.user.profile?.nationality || '',
       religion: member.user.profile?.religion || '',
       bloodGroup: member.user.profile?.bloodGroup || '',
-      position: member.position,
+      designation: member.designation,
       department: member.department,
-      joiningDate: member.joiningDate,
-      salary: member.salary,
-      emergencyContact: member.emergencyContact,
-      branch: {
-        id: member.branch.id,
-        name: member.branch.name,
-        address: member.branch.address,
-        phone: member.branch.phone,
-      },
-      school: {
-        name: member.branch.school.name,
-      },
-      attendanceCount: member.attendance.length,
+      joiningDate: member.createdAt,
+      branch: member.user.branch ? {
+        id: member.user.branch.id,
+        name: member.user.branch.name,
+        address: member.user.branch.address,
+        phone: member.user.branch.phone,
+      } : null,
+      school: member.user.branch ? {
+        name: member.user.branch.school.name,
+      } : null,
       status: 'Active',
     }));
 
@@ -206,18 +195,12 @@ export async function getStaffById(staffId: string) {
       include: {
         user: {
           include: {
-            profile: true
-          }
-        },
-        branch: {
-          include: {
-            school: true
-          }
-        },
-        attendance: {
-          take: 10,
-          orderBy: {
-            date: 'desc'
+            profile: true,
+            branch: {
+              include: {
+                school: true
+              }
+            }
           }
         }
       }
@@ -232,7 +215,6 @@ export async function getStaffById(staffId: string) {
 
     const staffDetails = {
       id: staff.id,
-      employeeId: staff.employeeId,
       
       // Personal information
       staff: {
@@ -250,29 +232,24 @@ export async function getStaffById(staffId: string) {
 
       // Professional information
       professional: {
-        position: staff.position,
+        designation: staff.designation,
         department: staff.department,
-        joiningDate: staff.joiningDate,
-        salary: staff.salary,
-        emergencyContact: staff.emergencyContact,
+        joiningDate: staff.createdAt,
       },
 
       // Branch and school information
-      branch: {
-        name: staff.branch.name,
-        address: staff.branch.address,
-        phone: staff.branch.phone
-      },
+      branch: staff.user.branch ? {
+        name: staff.user.branch.name,
+        address: staff.user.branch.address,
+        phone: staff.user.branch.phone
+      } : null,
 
-      school: {
-        name: staff.branch.school.name,
-        address: staff.branch.school.address,
-        phone: staff.branch.school.phone,
-        email: staff.branch.school.email
-      },
-
-      // Recent attendance
-      recentAttendance: staff.attendance,
+      school: staff.user.branch ? {
+        name: staff.user.branch.school.name,
+        address: staff.user.branch.school.address,
+        phone: staff.user.branch.school.phone,
+        email: staff.user.branch.school.email
+      } : null,
     };
 
     return {
@@ -560,24 +537,23 @@ export async function searchStaff(query: string, aamarId: string = '234567') {
       include: {
         user: {
           include: {
-            profile: true
+            profile: true,
+            branch: true
           }
-        },
-        branch: true
+        }
       },
       take: 20
     });
 
     const formattedStaff = staff.map(member => ({
       id: member.id,
-      employeeId: member.employeeId,
       name: `${member.user.firstName} ${member.user.lastName}`,
       email: member.user.email,
       phone: member.user.profile?.phone || '',
-      position: member.position,
+      designation: member.designation,
       department: member.department,
-      branch: member.branch.name,
-      joiningDate: member.joiningDate,
+      branch: member.user.branch?.name || '',
+      joiningDate: member.createdAt,
     }));
 
     return {

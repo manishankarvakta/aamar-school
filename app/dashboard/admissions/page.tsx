@@ -30,13 +30,8 @@ import { AdmissionForm } from './components/admission-form';
 import { 
   getAdmissionApplications, 
   getAdmissionStats,
-  getRecentAdmissions,
-  getClassWiseAdmissions,
-  getBranchWiseAdmissions,
   searchAdmissions,
-  getStudentDetails,
-  updateStudentAdmission,
-  deleteStudentAdmission
+  getStudentDetails
 } from '@/app/actions/admission';
 import { useBranch } from '@/contexts/branch-context';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -49,6 +44,8 @@ interface Application {
   studentName: string;
   rollNumber: string;
   class: string;
+  section: string;
+  branch: string;
   admissionDate: Date;
   parentName: string;
   parentEmail: string;
@@ -59,6 +56,13 @@ interface Application {
   status: string;
   dateOfBirth?: Date | null;
   gender?: string | null;
+}
+
+interface DashboardStats {
+  totalStudents: number;
+  thisMonthAdmissions: number;
+  recentAdmissions: number;
+  activeStudents: number;
 }
 
 export default function AdmissionsPage() {
@@ -73,10 +77,10 @@ export default function AdmissionsPage() {
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState<any>(null);
-  const [studentDetails, setStudentDetails] = useState<any>(null);
+  const [selectedStudent, setSelectedStudent] = useState<Application | null>(null);
+  const [studentDetails, setStudentDetails] = useState<unknown>(null);
   const [applications, setApplications] = useState<Application[]>([]);
-  const [dashboardStats, setDashboardStats] = useState<any>(null);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [classData, setClassData] = useState<any[]>([]);
   const [branchData, setBranchData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,27 +99,16 @@ export default function AdmissionsPage() {
       setStatsLoading(true);
       
       // Load all data in parallel for better performance
-      const [applicationsResult, statsResult, classResult, branchResult] = await Promise.all([
-        getRecentAdmissions('234567', 50), // Get recent admissions
-        getAdmissionStats('234567'),
-        getClassWiseAdmissions('234567'),
-        getBranchWiseAdmissions('234567'),
+      const [applicationsResult, statsResult] = await Promise.all([
+        getAdmissionApplications(), // Get recent admissions
+        getAdmissionStats(),
       ]);
 
-      if (applicationsResult.success) {
-        setApplications(applicationsResult.data);
-      }
+      // getAdmissionApplications returns array directly
+      setApplications(applicationsResult);
 
       if (statsResult.success) {
         setDashboardStats(statsResult.data);
-      }
-
-      if (classResult.success) {
-        setClassData(classResult.data);
-      }
-
-      if (branchResult.success) {
-        setBranchData(branchResult.data);
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -134,10 +127,9 @@ export default function AdmissionsPage() {
 
     try {
       setLoading(true);
-      const searchResult = await searchAdmissions(query, '234567');
-      if (searchResult.success) {
-        setApplications(searchResult.data);
-      }
+      const searchResult = await searchAdmissions(query);
+      // searchAdmissions returns array directly
+      setApplications(searchResult);
     } catch (error) {
       console.error('Error searching:', error);
     } finally {
