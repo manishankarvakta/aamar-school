@@ -1,0 +1,70 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+You are an expert full-stack product engineer. Build a modular, scalable School Management System using the following stack:
+
+🧱 Tech Stack:
+- Next.js (App Router) with Server Actions
+- PostgreSQL using Prisma ORM
+- REST API & Server Actions for backend
+- UI Libraries: ReactBits + shadcn/ui
+- Authentication: JWT-based with Role-based Access Control (RBAC)
+- Testing: Jest (unit) + Playwright (integration/E2E)
+
+🎯 Key Features & Modules:
+1. User & Role Management (Admin, Teacher, Student, Parent, Staff)
+2. Student Admission & Profile
+3. Class & Timetable Management
+4. Attendance Tracking (Students & Staff)
+5. Exams & Report Cards
+6. Fee & Billing Management
+7. Parent Portal (results, notices, fees)
+8. Homework & Assignment Submission
+9. Staff Management
+10. Library Management (Books, Borrowing, Returns)
+11. Transport & Route Management
+12. School Settings & Permissions
+
+🧩 What to Generate:
+
+1. **Database Schema with Prisma**
+   - Use `schoolId`, `aamarId` and `branchId` for multitenancy
+   - Proper relations: school → class → students → subjects → attendance, etc.
+
+2. **Next.js App Router-based Frontend**
+   - Create modular folders: `/app/modules/students`, `/teachers`, `/admin`
+   - Each module should include: UI components (ReactBits + shadcn/ui), server actions, client forms
+   - Use layouts, role-based dashboard views
+
+3. **Backend (REST + Server Actions)**
+   - Use `/api` folder for REST endpoints
+   - Use server actions for internal forms
+   - Apply auth middleware and role-based guards
+
+4. **Authentication System**
+   - JWT access and refresh tokens
+   - Middleware for route protection
+   - RBAC for Admin, Teacher, Student, Parent
+
+5. **Testing Suite**
+   - Unit tests with Jest for services and business logic
+   - Integration + E2E tests with Playwright
+   - Include sample test cases for login, student creation, fee submission
+
+6. **Developer Experience**
+   - ESLint, Prettier, Husky pre-commit setup
+   - Docker support for dev setup
+   - Fully documented with:
+     - `README.md` for installation
+     - `/docs/dev-docs.md` for developer onboarding
+     - `/docs/user-manual.md` for school users
+
+🚀 Output:
+- Complete folder structure ready for Cursor
+- Prisma schema and seed script
+- UI components with real design using ReactBits + shadcn/ui
+- Auth and role guards
+- Testing setup
+- README and docs

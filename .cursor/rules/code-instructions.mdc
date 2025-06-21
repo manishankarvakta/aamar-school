@@ -1,0 +1,62 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+Build a modern, animated, modular React-based website UI inspired by https://www.reactbits.dev/showcase.
+
+Design Goals:
+- Replicate the **aesthetic, structure, and animation style** used on ReactBits.dev.
+- Use **Framer Motion** for smooth animations and transitions.
+- Use **Tailwind CSS** for styling (utility-first design, minimal but elegant).
+- Components should be modular and clean, similar to ReactBits' architecture.
+
+Sections to Include:
+1. **Animated Hero Section**  
+   - Full width  
+   - Headline and subheading with entrance animation  
+   - Primary CTA button with hover animation  
+   - Include subtle background shapes or gradients like ReactBits
+
+2. **Component Grid Showcase**  
+   - Card-based layout with animations on hover and load  
+   - Each card includes title, description, and optional icon/image  
+   - Similar to the component cards on ReactBits showcase page
+
+3. **Interactive Feature Section**  
+   - Responsive 2–3 column layout  
+   - Icons or mini components that animate on scroll or hover  
+   - Clean headings and supporting text  
+
+4. **Testimonial/Feedback Carousel or Grid**  
+   - Motion elements or auto-slide animation  
+   - Styled like the testimonial section of ReactBits if present
+
+5. **Sticky or Transparent Navbar**  
+   - Animated on scroll  
+   - CTA button and logo included
+
+6. **Minimal Footer**  
+   - Social icons  
+   - Newsletter subscription input  
+   - Muted tones, good contrast, and clean layout  
+
+Tech Stack:
+- **React + TypeScript**
+- **Tailwind CSS**
+- **Framer Motion**
+- **React Vector Icon**
+- Optional: **shadcn/ui** for basic UI primitives
+- Folder structure: `components/`, `sections/`, `pages/`
+
+Design Style:
+- Rounded corners (xl or 2xl)
+- Soft drop shadows
+- Light theme with playful motion
+- Animations should be natural (ease-in-out, spring)
+- Spacing and padding should be generous
+
+Additional:
+- Make it production-ready for a modern developer tools product or UI library.
+- Code should be easy to extend and reuse for other similar sites.
+
