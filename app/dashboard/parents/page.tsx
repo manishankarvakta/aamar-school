@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,18 +6,29 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/components/ui/use-toast";
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Mail, 
-  Phone, 
-  MessageSquare, 
+import {
+  Plus,
+  Search,
+  Filter,
+  Mail,
+  Phone,
+  MessageSquare,
   Calendar,
   FileText,
   Users2,
@@ -29,27 +40,27 @@ import {
   User,
   MapPin,
   GraduationCap,
-  Loader2
+  Loader2,
 } from "lucide-react";
-import { 
-  getParents, 
-  getParentStats, 
-  getParentById, 
-  createParent, 
-  updateParent, 
-  deleteParent, 
-  searchParents 
+import {
+  getParents,
+  getParentStats,
+  getParentById,
+  createParent,
+  updateParent,
+  deleteParent,
+  searchParents,
 } from "@/app/actions/parents";
 
 // Import server actions - Note: Server actions file created, ready to use
-// import { 
-//   getParents, 
-//   getParentById, 
-//   createParent, 
-//   updateParent, 
-//   deleteParent, 
+// import {
+//   getParents,
+//   getParentById,
+//   createParent,
+//   updateParent,
+//   deleteParent,
 //   getParentStats,
-//   searchParents 
+//   searchParents
 // } from "@/actions/parents";
 
 interface Parent {
@@ -110,6 +121,9 @@ interface ParentDetails {
 interface ParentStats {
   totalParents: number;
   activeParents: number;
+  inactiveParents?: number;
+  maleParents?: number;
+  femaleParents?: number;
   newThisMonth: number;
   parentsWithMultipleChildren: number;
   messagesSent: number;
@@ -117,7 +131,9 @@ interface ParentStats {
 }
 
 const getStatusColor = (status: string) => {
-  return status === "Active" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800";
+  return status === "Active"
+    ? "bg-green-100 text-green-800"
+    : "bg-red-100 text-red-800";
 };
 
 export default function ParentsPage() {
@@ -128,7 +144,7 @@ export default function ParentsPage() {
     newThisMonth: 0,
     parentsWithMultipleChildren: 0,
     messagesSent: 0,
-    pendingIssues: 0
+    pendingIssues: 0,
   });
   const [filteredParents, setFilteredParents] = useState<Parent[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -150,7 +166,8 @@ export default function ParentsPage() {
   const [phoneDialogOpen, setPhoneDialogOpen] = useState(false);
   const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
   const [selectedParent, setSelectedParent] = useState<Parent | null>(null);
-  const [selectedParentDetails, setSelectedParentDetails] = useState<ParentDetails | null>(null);
+  const [selectedParentDetails, setSelectedParentDetails] =
+    useState<ParentDetails | null>(null);
 
   // Form states
   const [actionLoading, setActionLoading] = useState(false);
@@ -172,32 +189,33 @@ export default function ParentsPage() {
 
     // Apply search filter first if there's a search query
     if (searchQuery.trim() !== "") {
-      filtered = filtered.filter(parent => 
-        parent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        parent.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        parent.phone.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        parent.relation.toLowerCase().includes(searchQuery.toLowerCase())
+      filtered = filtered.filter(
+        (parent) =>
+          parent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          parent.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          parent.phone.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          parent.relation.toLowerCase().includes(searchQuery.toLowerCase()),
       );
     }
 
     // Apply status filter
     if (statusFilter !== "all") {
-      filtered = filtered.filter(parent => 
-        parent.status.toLowerCase() === statusFilter.toLowerCase()
+      filtered = filtered.filter(
+        (parent) => parent.status.toLowerCase() === statusFilter.toLowerCase(),
       );
     }
 
     // Apply class filter (by student's class)
     if (classFilter !== "all") {
-      filtered = filtered.filter(parent => 
-        parent.students.some(student => 
-          student.class.toLowerCase().includes(classFilter.toLowerCase())
-        )
+      filtered = filtered.filter((parent) =>
+        parent.students.some((student) =>
+          student.class.toLowerCase().includes(classFilter.toLowerCase()),
+        ),
       );
     }
 
     setFilteredParents(filtered);
-    
+
     // Reset to first page when filters change
     setCurrentPage(1);
   }, [parents, statusFilter, classFilter, searchQuery]);
@@ -227,7 +245,7 @@ export default function ParentsPage() {
   // Mock functions for now - replace with real server actions when ready
   const mockGetParents = () => ({
     success: true,
-    data: []
+    data: [],
   });
 
   const mockGetParentStats = () => ({
@@ -238,22 +256,48 @@ export default function ParentsPage() {
       newThisMonth: 0,
       parentsWithMultipleChildren: 0,
       messagesSent: 0,
-      pendingIssues: 0
-    }
+      pendingIssues: 0,
+    },
   });
 
   const fetchParents = async () => {
     try {
       setLoading(true);
       const result = await getParents();
-      if (result) {
-        setParents(result?.data || []);
-        setFilteredParents(result?.data || []);
+      if (result && result.success && result.data) {
+        // Transform the nested data structure to match Parent interface
+        const transformedParents = (result.data as any[]).map(
+          (parent: any) => ({
+            id: parent.id,
+            parentId: parent.id,
+            name: `${parent.user?.firstName || ""} ${parent.user?.lastName || ""}`.trim(),
+            firstName: parent.user?.firstName || "",
+            lastName: parent.user?.lastName || "",
+            email: parent.user?.email || "",
+            phone: parent.user?.profile?.phone || "N/A",
+            relation: parent.relation || "Parent",
+            occupation: parent.user?.profile?.occupation || "N/A",
+            students:
+              parent.students?.map((student: any) => ({
+                id: student.id,
+                name: `${student.user?.firstName || ""} ${student.user?.lastName || ""}`.trim(),
+                rollNumber: student.rollNumber || "N/A",
+                class: student.section?.class?.name || "N/A",
+                branch: student.section?.class?.branch?.name || "N/A",
+              })) || [],
+            totalStudents: parent.students?.length || 0,
+            lastContact: parent.user?.updatedAt || new Date(),
+            status: parent.user?.isActive ? "Active" : "Inactive",
+            createdAt: parent.user?.createdAt || new Date(),
+          }),
+        );
+        setParents(transformedParents);
+        setFilteredParents(transformedParents);
       } else {
-        console.error('Failed to fetch parents');
+        console.error("Failed to fetch parents");
       }
     } catch (error) {
-      console.error('Failed to fetch parents');
+      console.error("Failed to fetch parents");
     } finally {
       setLoading(false);
     }
@@ -263,10 +307,23 @@ export default function ParentsPage() {
     try {
       const result = await getParentStats();
       if (result.success && result.data) {
-        setStats(result.data);
+        // Transform stats data to match ParentStats interface
+        const statsData = result.data as any;
+        setStats({
+          totalParents: statsData.totalParents || 0,
+          activeParents: statsData.activeParents || 0,
+          inactiveParents: statsData.inactiveParents || 0,
+          maleParents: statsData.maleParents || 0,
+          femaleParents: statsData.femaleParents || 0,
+          newThisMonth: statsData.newThisMonth || 0,
+          parentsWithMultipleChildren:
+            statsData.parentsWithMultipleChildren || 0,
+          messagesSent: statsData.messagesSent || 0,
+          pendingIssues: statsData.pendingIssues || 0,
+        });
       }
     } catch (error) {
-      console.error('Failed to fetch stats:', error);
+      console.error("Failed to fetch stats:", error);
     }
   };
 
@@ -275,14 +332,48 @@ export default function ParentsPage() {
       setActionLoading(true);
       const result = await getParentById(parent.id);
       if (result.success && result.data) {
-        setSelectedParentDetails(result.data);
+        // Transform parent details data to match ParentDetails interface
+        const parentData = result.data as any;
+        const transformedDetails: ParentDetails = {
+          id: parentData.id,
+          parent: {
+            firstName: parentData.user?.firstName || "",
+            lastName: parentData.user?.lastName || "",
+            email: parentData.user?.email || "",
+            phone: parentData.user?.profile?.phone || null,
+            dateOfBirth: parentData.user?.profile?.dateOfBirth || null,
+            gender: parentData.user?.profile?.gender || null,
+            address: parentData.user?.profile?.address || null,
+            nationality: parentData.user?.profile?.nationality || null,
+            religion: parentData.user?.profile?.religion || null,
+            relation: parentData.relation || "Parent",
+          },
+          school: {
+            name: "School Name", // TODO: Get from session or config
+            address: "School Address",
+            phone: "School Phone",
+            email: "school@example.com",
+          },
+          branch: parentData.user?.branch
+            ? {
+                name: parentData.user.branch.name,
+                address: parentData.user.branch.address,
+                phone: parentData.user.branch.phone,
+              }
+            : null,
+          students: parentData.students || [],
+          totalStudents: parentData.students?.length || 0,
+          status: parentData.user?.isActive ? "Active" : "Inactive",
+        };
+
+        setSelectedParentDetails(transformedDetails);
         setSelectedParent(parent);
         setViewDialogOpen(true);
       } else {
-        console.error('Failed to fetch parent details');
+        console.error("Failed to fetch parent details");
       }
     } catch (error) {
-      console.error('Failed to fetch parent details');
+      console.error("Failed to fetch parent details");
     } finally {
       setActionLoading(false);
     }
@@ -320,70 +411,73 @@ export default function ParentsPage() {
 
   const handleSendMessage = async () => {
     if (!selectedParent || !messageSubject.trim() || !messageText.trim()) {
-      console.error('Please fill in all message fields');
+      console.error("Please fill in all message fields");
       return;
     }
 
     try {
       setActionLoading(true);
-      
+
       // Here you would integrate with your messaging system
       // For now, we'll simulate the action
-      console.log('Sending message to:', selectedParent.email);
-      console.log('Subject:', messageSubject);
-      console.log('Message:', messageText);
-      
+      console.log("Sending message to:", selectedParent.email);
+      console.log("Subject:", messageSubject);
+      console.log("Message:", messageText);
+
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      console.log('Message sent successfully!');
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      console.log("Message sent successfully!");
       setMessageDialogOpen(false);
       setMessageSubject("");
       setMessageText("");
-      
     } catch (error) {
-      console.error('Failed to send message');
+      console.error("Failed to send message");
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleScheduleAppointment = async () => {
-    if (!selectedParent || !appointmentDate || !appointmentTime || !appointmentPurpose.trim()) {
-      console.error('Please fill in all appointment fields');
+    if (
+      !selectedParent ||
+      !appointmentDate ||
+      !appointmentTime ||
+      !appointmentPurpose.trim()
+    ) {
+      console.error("Please fill in all appointment fields");
       return;
     }
 
     try {
       setActionLoading(true);
-      
+
       // Here you would integrate with your calendar/appointment system
-      console.log('Scheduling appointment with:', selectedParent.name);
-      console.log('Date:', appointmentDate);
-      console.log('Time:', appointmentTime);
-      console.log('Purpose:', appointmentPurpose);
-      
+      console.log("Scheduling appointment with:", selectedParent.name);
+      console.log("Date:", appointmentDate);
+      console.log("Time:", appointmentTime);
+      console.log("Purpose:", appointmentPurpose);
+
       // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      console.log('Appointment scheduled successfully!');
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      console.log("Appointment scheduled successfully!");
       setCalendarDialogOpen(false);
       setAppointmentDate("");
       setAppointmentTime("");
       setAppointmentPurpose("");
-      
     } catch (error) {
-      console.error('Failed to schedule appointment');
+      console.error("Failed to schedule appointment");
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleCallParent = (phoneNumber: string) => {
-    if (phoneNumber && phoneNumber !== 'N/A') {
+    if (phoneNumber && phoneNumber !== "N/A") {
       // Open phone dialer on mobile or copy to clipboard on desktop
-      if (typeof window !== 'undefined') {
-        window.open(`tel:${phoneNumber}`, '_self');
+      if (typeof window !== "undefined") {
+        window.open(`tel:${phoneNumber}`, "_self");
       }
     }
   };
@@ -391,8 +485,8 @@ export default function ParentsPage() {
   const handleEmailParent = (email: string) => {
     if (email) {
       // Open email client
-      if (typeof window !== 'undefined') {
-        window.open(`mailto:${email}`, '_self');
+      if (typeof window !== "undefined") {
+        window.open(`mailto:${email}`, "_self");
       }
     }
   };
@@ -400,18 +494,34 @@ export default function ParentsPage() {
   const handleCreateParent = async (formData: FormData) => {
     try {
       setActionLoading(true);
-      const result = await createParent(formData);
-      
+
+      // Extract form data values
+      const parentData = {
+        firstName: formData.get("firstName") as string,
+        lastName: formData.get("lastName") as string,
+        email: formData.get("email") as string,
+        phone: formData.get("phone") as string,
+        address: formData.get("address") as string,
+        dateOfBirth: formData.get("dateOfBirth") as string,
+        gender: formData.get("gender") as "MALE" | "FEMALE" | "OTHER",
+        occupation: formData.get("occupation") as string,
+        relationship: formData.get("relationship") as string,
+        emergencyContact: formData.get("emergencyContact") as string,
+        branchId: formData.get("branchId") as string,
+      };
+
+      const result = await createParent(parentData);
+
       if (result.success) {
-        console.log('Parent created successfully');
+        console.log("Parent created successfully");
         setAddDialogOpen(false);
         fetchParents();
         fetchStats();
       } else {
-        console.error('Failed to create parent:', result.message);
+        console.error("Failed to create parent:", result.message);
       }
     } catch (error) {
-      console.error('Failed to create parent');
+      console.error("Failed to create parent");
     } finally {
       setActionLoading(false);
     }
@@ -422,18 +532,34 @@ export default function ParentsPage() {
 
     try {
       setActionLoading(true);
-      const result = await updateParent(selectedParent.id, formData);
-      
+
+      // Extract form data values
+      const parentData = {
+        firstName: formData.get("firstName") as string,
+        lastName: formData.get("lastName") as string,
+        email: formData.get("email") as string,
+        phone: formData.get("phone") as string,
+        address: formData.get("address") as string,
+        dateOfBirth: formData.get("dateOfBirth") as string,
+        gender: formData.get("gender") as "MALE" | "FEMALE" | "OTHER",
+        occupation: formData.get("occupation") as string,
+        relationship: formData.get("relationship") as string,
+        emergencyContact: formData.get("emergencyContact") as string,
+        branchId: formData.get("branchId") as string,
+      };
+
+      const result = await updateParent(selectedParent.id, parentData);
+
       if (result.success) {
-        console.log('Parent updated successfully');
+        console.log("Parent updated successfully");
         setEditDialogOpen(false);
         fetchParents();
         fetchStats();
       } else {
-        console.error('Failed to update parent:', result.message);
+        console.error("Failed to update parent:", result.message);
       }
     } catch (error) {
-      console.error('Failed to update parent');
+      console.error("Failed to update parent");
     } finally {
       setActionLoading(false);
     }
@@ -445,17 +571,17 @@ export default function ParentsPage() {
     try {
       setActionLoading(true);
       const result = await deleteParent(selectedParent.id);
-      
+
       if (result.success) {
-        console.log('Parent deleted successfully');
+        console.log("Parent deleted successfully");
         setDeleteDialogOpen(false);
         fetchParents();
         fetchStats();
       } else {
-        console.error('Failed to delete parent:', result.message);
+        console.error("Failed to delete parent:", result.message);
       }
     } catch (error) {
-      console.error('Failed to delete parent');
+      console.error("Failed to delete parent");
     } finally {
       setActionLoading(false);
     }
@@ -476,7 +602,9 @@ export default function ParentsPage() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Parent Management</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Parent Management
+          </h1>
           <p className="text-muted-foreground">
             Manage parent profiles, communication, and student relationships
           </p>
@@ -500,7 +628,9 @@ export default function ParentsPage() {
             <div className="flex items-center">
               <Users2 className="h-8 w-8 text-blue-600" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Total Parents</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Total Parents
+                </p>
                 <p className="text-2xl font-bold">{stats.totalParents}</p>
               </div>
             </div>
@@ -511,7 +641,9 @@ export default function ParentsPage() {
             <div className="flex items-center">
               <UserCheck className="h-8 w-8 text-green-600" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Active Parents</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Active Parents
+                </p>
                 <p className="text-2xl font-bold">{stats.activeParents}</p>
               </div>
             </div>
@@ -522,7 +654,9 @@ export default function ParentsPage() {
             <div className="flex items-center">
               <MessageSquare className="h-8 w-8 text-purple-600" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Messages Sent</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Messages Sent
+                </p>
                 <p className="text-2xl font-bold">{stats.messagesSent}</p>
               </div>
             </div>
@@ -533,7 +667,9 @@ export default function ParentsPage() {
             <div className="flex items-center">
               <AlertCircle className="h-8 w-8 text-orange-600" />
               <div className="ml-4">
-                <p className="text-sm font-medium text-muted-foreground">Pending Issues</p>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Pending Issues
+                </p>
                 <p className="text-2xl font-bold">{stats.pendingIssues}</p>
               </div>
             </div>
@@ -551,9 +687,9 @@ export default function ParentsPage() {
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search parents by name, email, or phone..." 
-                  className="pl-8" 
+                <Input
+                  placeholder="Search parents by name, email, or phone..."
+                  className="pl-8"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -593,10 +729,19 @@ export default function ParentsPage() {
       <Card>
         <CardHeader>
           <div className="flex justify-between items-center">
-            <CardTitle>Parents Directory ({filteredParents.length} total)</CardTitle>
+            <CardTitle>
+              Parents Directory ({filteredParents.length} total)
+            </CardTitle>
             <div className="flex items-center space-x-2">
-              <span className="text-sm text-muted-foreground">Items per page:</span>
-              <Select value={itemsPerPage.toString()} onValueChange={(value) => handleItemsPerPageChange(Number(value))}>
+              <span className="text-sm text-muted-foreground">
+                Items per page:
+              </span>
+              <Select
+                value={itemsPerPage.toString()}
+                onValueChange={(value) =>
+                  handleItemsPerPageChange(Number(value))
+                }
+              >
                 <SelectTrigger className="w-20">
                   <SelectValue />
                 </SelectTrigger>
@@ -620,42 +765,54 @@ export default function ParentsPage() {
             <>
               <div className="space-y-4">
                 {paginatedParents.map((parent) => (
-                  <div key={parent.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                  <div
+                    key={parent.id}
+                    className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-4">
                         <Avatar className="h-12 w-12">
                           <AvatarFallback>
-                            {parent.firstName?.[0]}{parent.lastName?.[0]}
+                            {parent.firstName?.[0]}
+                            {parent.lastName?.[0]}
                           </AvatarFallback>
                         </Avatar>
                         <div>
                           <h3 className="font-semibold">{parent.name}</h3>
-                          <p className="text-sm text-muted-foreground">{parent.relation} - {parent.occupation}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {parent.relation} - {parent.occupation}
+                          </p>
                           <div className="flex items-center space-x-4 mt-1">
                             <span className="text-sm text-muted-foreground flex items-center">
                               <Mail className="h-3 w-3 mr-1" />
                               {parent.email}
                             </span>
+                            j
                             <span className="text-sm text-muted-foreground flex items-center">
                               <Phone className="h-3 w-3 mr-1" />
-                              {parent.phone || 'N/A'}
+                              {parent.phone || "N/A"}
                             </span>
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="flex items-center space-x-4">
                         <div className="text-right">
                           <Badge className={getStatusColor(parent.status)}>
                             {parent.status}
                           </Badge>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Last contact: {parent.lastContact ? new Date(parent.lastContact).toLocaleDateString() : 'N/A'}
+                            Last contact:{" "}
+                            {parent.lastContact
+                              ? new Date(
+                                  parent.lastContact,
+                                ).toLocaleDateString()
+                              : "N/A"}
                           </p>
                         </div>
                         <div className="flex space-x-2">
-                          <Button 
-                            size="sm" 
+                          <Button
+                            size="sm"
                             variant="outline"
                             onClick={() => handleViewDetails(parent)}
                             disabled={actionLoading}
@@ -666,40 +823,59 @@ export default function ParentsPage() {
                               <Eye className="h-4 w-4" />
                             )}
                           </Button>
-                          <Button 
-                            size="sm" 
+                          <Button
+                            size="sm"
                             variant="outline"
                             onClick={() => handleEdit(parent)}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button 
-                            size="sm" 
+                          <Button
+                            size="sm"
                             variant="outline"
                             onClick={() => handleDelete(parent)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => handleMessage(parent)}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleMessage(parent)}
+                          >
                             <MessageSquare className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => handlePhone(parent)}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handlePhone(parent)}
+                          >
                             <Phone className="h-4 w-4" />
                           </Button>
-                          <Button size="sm" variant="outline" onClick={() => handleCalendar(parent)}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleCalendar(parent)}
+                          >
                             <Calendar className="h-4 w-4" />
                           </Button>
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Children Information */}
                     <div className="mt-4 pt-4 border-t">
-                      <p className="text-sm font-medium mb-2">Children ({parent.totalStudents}):</p>
+                      <p className="text-sm font-medium mb-2">
+                        Children ({parent.totalStudents}):
+                      </p>
                       <div className="flex flex-wrap gap-2">
                         {parent.students.map((student, index) => (
-                          <Badge key={index} variant="secondary" className="text-xs">
-                            {student.name} - {student.class} ({student.rollNumber})
+                          <Badge
+                            key={index}
+                            variant="secondary"
+                            className="text-xs"
+                          >
+                            {student.name} - {student.class} (
+                            {student.rollNumber})
                           </Badge>
                         ))}
                       </div>
@@ -713,10 +889,11 @@ export default function ParentsPage() {
                 <div className="flex items-center justify-between mt-6">
                   <div className="flex items-center space-x-2">
                     <p className="text-sm text-muted-foreground">
-                      Showing {startItem} to {endItem} of {filteredParents.length} results
+                      Showing {startItem} to {endItem} of{" "}
+                      {filteredParents.length} results
                     </p>
                   </div>
-                  
+
                   <div className="flex items-center space-x-2">
                     <Button
                       variant="outline"
@@ -726,34 +903,41 @@ export default function ParentsPage() {
                     >
                       Previous
                     </Button>
-                    
+
                     <div className="flex items-center space-x-1">
                       {/* Show page numbers */}
-                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        let pageNumber;
-                        if (totalPages <= 5) {
-                          pageNumber = i + 1;
-                        } else if (currentPage <= 3) {
-                          pageNumber = i + 1;
-                        } else if (currentPage >= totalPages - 2) {
-                          pageNumber = totalPages - 4 + i;
-                        } else {
-                          pageNumber = currentPage - 2 + i;
-                        }
-                        
-                        return (
-                          <Button
-                            key={pageNumber}
-                            variant={currentPage === pageNumber ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => handlePageChange(pageNumber)}
-                          >
-                            {pageNumber}
-                          </Button>
-                        );
-                      })}
+                      {Array.from(
+                        { length: Math.min(5, totalPages) },
+                        (_, i) => {
+                          let pageNumber;
+                          if (totalPages <= 5) {
+                            pageNumber = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNumber = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNumber = totalPages - 4 + i;
+                          } else {
+                            pageNumber = currentPage - 2 + i;
+                          }
+
+                          return (
+                            <Button
+                              key={pageNumber}
+                              variant={
+                                currentPage === pageNumber
+                                  ? "default"
+                                  : "outline"
+                              }
+                              size="sm"
+                              onClick={() => handlePageChange(pageNumber)}
+                            >
+                              {pageNumber}
+                            </Button>
+                          );
+                        },
+                      )}
                     </div>
-                    
+
                     <Button
                       variant="outline"
                       size="sm"
@@ -776,7 +960,8 @@ export default function ParentsPage() {
           <DialogHeader>
             <DialogTitle>
               Parent Details
-              {selectedParentDetails && ` - ${selectedParentDetails.parent.firstName} ${selectedParentDetails.parent.lastName}`}
+              {selectedParentDetails &&
+                ` - ${selectedParentDetails.parent.firstName} ${selectedParentDetails.parent.lastName}`}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
@@ -791,7 +976,10 @@ export default function ParentsPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                     <div>
                       <span className="font-medium">Name:</span>
-                      <p>{selectedParentDetails.parent.firstName} {selectedParentDetails.parent.lastName}</p>
+                      <p>
+                        {selectedParentDetails.parent.firstName}{" "}
+                        {selectedParentDetails.parent.lastName}
+                      </p>
                     </div>
                     <div>
                       <span className="font-medium">Email:</span>
@@ -799,7 +987,7 @@ export default function ParentsPage() {
                     </div>
                     <div>
                       <span className="font-medium">Phone:</span>
-                      <p>{selectedParentDetails.parent.phone || 'N/A'}</p>
+                      <p>{selectedParentDetails.parent.phone || "N/A"}</p>
                     </div>
                     <div>
                       <span className="font-medium">Relation:</span>
@@ -807,20 +995,21 @@ export default function ParentsPage() {
                     </div>
                     <div>
                       <span className="font-medium">Gender:</span>
-                      <p>{selectedParentDetails.parent.gender || 'N/A'}</p>
+                      <p>{selectedParentDetails.parent.gender || "N/A"}</p>
                     </div>
                     <div>
                       <span className="font-medium">Date of Birth:</span>
                       <p>
-                        {selectedParentDetails.parent.dateOfBirth 
-                          ? new Date(selectedParentDetails.parent.dateOfBirth).toLocaleDateString()
-                          : 'N/A'
-                        }
+                        {selectedParentDetails.parent.dateOfBirth
+                          ? new Date(
+                              selectedParentDetails.parent.dateOfBirth,
+                            ).toLocaleDateString()
+                          : "N/A"}
                       </p>
                     </div>
                     <div className="col-span-2">
                       <span className="font-medium">Address:</span>
-                      <p>{selectedParentDetails.parent.address || 'N/A'}</p>
+                      <p>{selectedParentDetails.parent.address || "N/A"}</p>
                     </div>
                   </div>
                 </div>
@@ -841,14 +1030,15 @@ export default function ParentsPage() {
                             <div>
                               <p className="font-medium">{student.name}</p>
                               <p className="text-sm text-muted-foreground">
-                                Roll No: {student.rollNumber} | Class: {student.class.displayName}
+                                Roll No: {student?.rollNumber} | Class:{" "}
+                                {student?.class?.displayName}
                               </p>
                               <p className="text-sm text-muted-foreground">
-                                Branch: {student.class.branch}
+                                Branch: {student?.class?.branch}
                               </p>
-                              {student.class.teacher && (
+                              {student?.class?.teacher && (
                                 <p className="text-sm text-muted-foreground">
-                                  Class Teacher: {student.class.teacher.name}
+                                  Class Teacher: {student?.class?.teacher?.name}
                                 </p>
                               )}
                             </div>
@@ -857,7 +1047,9 @@ export default function ParentsPage() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-sm text-muted-foreground">No children registered</p>
+                    <p className="text-sm text-muted-foreground">
+                      No children registered
+                    </p>
                   )}
                 </div>
               </div>
@@ -885,39 +1077,39 @@ export default function ParentsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>First Name *</Label>
-                    <Input 
-                      name="firstName" 
+                    <Input
+                      name="firstName"
                       defaultValue={selectedParent.firstName}
-                      required 
+                      required
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Last Name *</Label>
-                    <Input 
-                      name="lastName" 
+                    <Input
+                      name="lastName"
                       defaultValue={selectedParent.lastName}
-                      required 
+                      required
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Email *</Label>
-                    <Input 
-                      name="email" 
-                      type="email" 
+                    <Input
+                      name="email"
+                      type="email"
                       defaultValue={selectedParent.email}
-                      required 
+                      required
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Phone</Label>
-                    <Input 
-                      name="phone" 
-                      defaultValue={selectedParent.phone}
-                    />
+                    <Input name="phone" defaultValue={selectedParent.phone} />
                   </div>
                   <div className="space-y-2">
                     <Label>Relation *</Label>
-                    <Select name="relation" defaultValue={selectedParent.relation}>
+                    <Select
+                      name="relation"
+                      defaultValue={selectedParent.relation}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select relation" />
                       </SelectTrigger>
@@ -944,18 +1136,21 @@ export default function ParentsPage() {
                   </div>
                   <div className="col-span-2 space-y-2">
                     <Label>Address</Label>
-                    <Textarea 
-                      name="address" 
-                      rows={3}
-                    />
+                    <Textarea name="address" rows={3} />
                   </div>
                 </div>
                 <div className="flex justify-end space-x-2">
-                  <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEditDialogOpen(false)}
+                  >
                     Cancel
                   </Button>
                   <Button type="submit" disabled={actionLoading}>
-                    {actionLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    {actionLoading && (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    )}
                     Update Parent
                   </Button>
                 </div>
@@ -977,9 +1172,10 @@ export default function ParentsPage() {
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete this parent? This action cannot be undone.
+              Are you sure you want to delete this parent? This action cannot be
+              undone.
             </p>
-            
+
             {selectedParent && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <div className="flex items-center">
@@ -993,24 +1189,30 @@ export default function ParentsPage() {
                     </p>
                     {selectedParent.totalStudents > 0 && (
                       <p className="text-sm text-red-600 font-medium">
-                        Warning: This parent has {selectedParent.totalStudents} associated student(s).
+                        Warning: This parent has {selectedParent.totalStudents}{" "}
+                        associated student(s).
                       </p>
                     )}
                   </div>
                 </div>
               </div>
             )}
-            
+
             <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setDeleteDialogOpen(false)}
+              >
                 Cancel
               </Button>
-              <Button 
-                variant="destructive" 
+              <Button
+                variant="destructive"
                 onClick={handleDeleteParent}
                 disabled={actionLoading}
               >
-                {actionLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {actionLoading && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
                 Delete Parent
               </Button>
             </div>
@@ -1028,7 +1230,7 @@ export default function ParentsPage() {
             <p className="text-sm text-muted-foreground">
               Create a new parent profile and link to students
             </p>
-            
+
             <form action={handleCreateParent} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -1084,20 +1286,31 @@ export default function ParentsPage() {
                 </div>
                 <div className="col-span-2 space-y-2">
                   <Label>Address</Label>
-                  <Textarea 
-                    name="address" 
-                    rows={3}
-                  />
+                  <Textarea name="address" rows={3} />
                 </div>
-                <input type="hidden" name="schoolId" value="clz123456schoolid" />
-                <input type="hidden" name="branchId" value="clz123456branchid" />
+                <input
+                  type="hidden"
+                  name="schoolId"
+                  value="clz123456schoolid"
+                />
+                <input
+                  type="hidden"
+                  name="branchId"
+                  value="clz123456branchid"
+                />
               </div>
               <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setAddDialogOpen(false)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setAddDialogOpen(false)}
+                >
                   Cancel
                 </Button>
                 <Button type="submit" disabled={actionLoading}>
-                  {actionLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  {actionLoading && (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  )}
                   Create Parent
                 </Button>
               </div>
@@ -1131,11 +1344,16 @@ export default function ParentsPage() {
               />
             </div>
             <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setMessageDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setMessageDialogOpen(false)}
+              >
                 Cancel
               </Button>
               <Button onClick={handleSendMessage} disabled={actionLoading}>
-                {actionLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {actionLoading && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
                 Send Message
               </Button>
             </div>
@@ -1154,12 +1372,16 @@ export default function ParentsPage() {
               <Phone className="h-5 w-5 text-green-600" />
               <div className="flex-1">
                 <p className="font-medium">Call</p>
-                <p className="text-sm text-muted-foreground">{selectedParent?.phone || 'No phone number'}</p>
+                <p className="text-sm text-muted-foreground">
+                  {selectedParent?.phone || "No phone number"}
+                </p>
               </div>
-              <Button 
-                size="sm" 
-                onClick={() => handleCallParent(selectedParent?.phone || '')}
-                disabled={!selectedParent?.phone || selectedParent.phone === 'N/A'}
+              <Button
+                size="sm"
+                onClick={() => handleCallParent(selectedParent?.phone || "")}
+                disabled={
+                  !selectedParent?.phone || selectedParent.phone === "N/A"
+                }
               >
                 Call
               </Button>
@@ -1168,17 +1390,22 @@ export default function ParentsPage() {
               <Mail className="h-5 w-5 text-blue-600" />
               <div className="flex-1">
                 <p className="font-medium">Email</p>
-                <p className="text-sm text-muted-foreground">{selectedParent?.email}</p>
+                <p className="text-sm text-muted-foreground">
+                  {selectedParent?.email}
+                </p>
               </div>
-              <Button 
-                size="sm" 
-                onClick={() => handleEmailParent(selectedParent?.email || '')}
+              <Button
+                size="sm"
+                onClick={() => handleEmailParent(selectedParent?.email || "")}
               >
                 Email
               </Button>
             </div>
             <div className="flex justify-end">
-              <Button variant="outline" onClick={() => setPhoneDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setPhoneDialogOpen(false)}
+              >
                 Close
               </Button>
             </div>
@@ -1190,7 +1417,9 @@ export default function ParentsPage() {
       <Dialog open={calendarDialogOpen} onOpenChange={setCalendarDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Schedule Appointment with {selectedParent?.name}</DialogTitle>
+            <DialogTitle>
+              Schedule Appointment with {selectedParent?.name}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -1219,11 +1448,19 @@ export default function ParentsPage() {
               />
             </div>
             <div className="flex justify-end space-x-2">
-              <Button variant="outline" onClick={() => setCalendarDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setCalendarDialogOpen(false)}
+              >
                 Cancel
               </Button>
-              <Button onClick={handleScheduleAppointment} disabled={actionLoading}>
-                {actionLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              <Button
+                onClick={handleScheduleAppointment}
+                disabled={actionLoading}
+              >
+                {actionLoading && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
                 Schedule
               </Button>
             </div>
@@ -1238,7 +1475,9 @@ export default function ParentsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-semibold">Send Announcement</h3>
-                <p className="text-sm text-muted-foreground">Broadcast message to all parents</p>
+                <p className="text-sm text-muted-foreground">
+                  Broadcast message to all parents
+                </p>
               </div>
               <Button>
                 <MessageSquare className="h-4 w-4 mr-2" />
@@ -1247,13 +1486,15 @@ export default function ParentsPage() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-semibold">Schedule Meeting</h3>
-                <p className="text-sm text-muted-foreground">Plan parent-teacher conferences</p>
+                <p className="text-sm text-muted-foreground">
+                  Plan parent-teacher conferences
+                </p>
               </div>
               <Button>
                 <Calendar className="h-4 w-4 mr-2" />
@@ -1262,13 +1503,15 @@ export default function ParentsPage() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-semibold">Generate Report</h3>
-                <p className="text-sm text-muted-foreground">Parent engagement analytics</p>
+                <p className="text-sm text-muted-foreground">
+                  Parent engagement analytics
+                </p>
               </div>
               <Button>
                 <FileText className="h-4 w-4 mr-2" />
@@ -1280,4 +1523,4 @@ export default function ParentsPage() {
       </div>
     </div>
   );
-} 
+}
