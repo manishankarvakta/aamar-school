@@ -2,11 +2,12 @@
 
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { LessonType } from '@prisma/client';
 
 export interface SubjectResult {
   success: boolean;
   message: string;
-  data?: any;
+  data?: unknown;
 }
 
 // Create new subject
@@ -80,31 +81,29 @@ export async function getSubjects(aamarId: string = '234567') {
   try {
     const subjects = await prisma.subject.findMany({
       where: {
-        aamarId: aamarId
+        school: {
+          aamarId: aamarId
+        }
       },
       include: {
         school: true,
         class: {
           include: {
-            branch: true
-          }
-        },
-        sections: {
-          include: {
-            _count: {
-              select: {
-                students: true
+            branch: true,
+            sections: {
+              include: {
+                _count: {
+                  select: {
+                    students: true
+                  }
+                }
               }
             }
           }
         },
         chapters: {
           include: {
-            lessons: {
-              orderBy: {
-                orderIndex: 'asc'
-              }
-            },
+            lessons: true,
             _count: {
               select: {
                 lessons: true
@@ -118,7 +117,6 @@ export async function getSubjects(aamarId: string = '234567') {
         timetables: true,
         _count: {
           select: {
-            sections: true,
             timetables: true,
             chapters: true
           }
@@ -130,8 +128,8 @@ export async function getSubjects(aamarId: string = '234567') {
     });
 
     const formattedSubjects = subjects.map(subject => {
-      // Calculate total students from sections
-      const totalStudents = subject.sections.reduce((total, section) => 
+      // Calculate total students from class sections
+      const totalStudents = subject.class.sections.reduce((total, section) => 
         total + section._count.students, 0);
 
       return {
@@ -150,7 +148,7 @@ export async function getSubjects(aamarId: string = '234567') {
           studentCount: totalStudents,
           branch: subject.class.branch.name,
         },
-        sections: subject.sections.map(section => ({
+        sections: subject.class.sections.map(section => ({
           id: section.id,
           name: section.name,
           displayName: section.displayName,
@@ -174,7 +172,7 @@ export async function getSubjects(aamarId: string = '234567') {
             status: 'Active'
           }))
         })),
-        totalSections: subject._count.sections,
+        totalSections: subject.class.sections.length,
         totalChapters: subject._count.chapters,
         totalTimetables: subject._count.timetables,
         totalStudents: totalStudents,
@@ -205,11 +203,6 @@ export async function getSubjectById(subjectId: string) {
         school: true,
         class: {
           include: {
-            students: {
-              include: {
-                user: true
-              }
-            },
             branch: true,
             teacher: {
               include: {
@@ -247,10 +240,8 @@ export async function getSubjectById(subjectId: string) {
       class: {
         id: subject.class.id,
         name: subject.class.name,
-        section: subject.class.section,
-        displayName: `${subject.class.name} - ${subject.class.section}`,
+        displayName: subject.class.name,
         academicYear: subject.class.academicYear,
-        studentCount: subject.class.students.length,
         branch: subject.class.branch.name,
         teacher: subject.class.teacher ? {
           name: `${subject.class.teacher.user.firstName} ${subject.class.teacher.user.lastName}`,
@@ -398,57 +389,66 @@ export async function deleteSubject(subjectId: string): Promise<SubjectResult> {
 // Get subject statistics
 export async function getSubjectStats(aamarId: string = '234567') {
   try {
-    const [totalSubjects, totalChapters, totalLessons, totalTimetables] = await Promise.all([
-      prisma.subject.count({
-        where: {
-          aamarId: aamarId
-        }
-      }),
-      prisma.chapter.count({
-        where: {
-          aamarId: aamarId
-        }
-      }),
-      prisma.lesson.count({
-        where: {
-          aamarId: aamarId
-        }
-      }),
-      prisma.timetable.count({
-        where: {
-          subject: {
-            aamarId: aamarId
-          }
-        }
-      })
-    ]);
-
-    // Get unique classes that have subjects
-    const subjectsWithClasses = await prisma.subject.groupBy({
-      by: ['classId'],
+    const totalSubjects = await prisma.subject.count({
       where: {
-        aamarId: aamarId
+        school: {
+          aamarId: aamarId
+        }
       }
     });
 
-    const stats = {
-      totalSubjects,
-      totalChapters,
-      totalLessons,
-      totalTimetables,
-      subjectsWithClasses: subjectsWithClasses.length,
-    };
+    const newThisMonth = await prisma.subject.count({
+      where: {
+        school: {
+          aamarId: aamarId
+        },
+        createdAt: {
+          gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+        }
+      }
+    });
+
+    // Get class-wise distribution
+    const classWiseCount = await prisma.subject.groupBy({
+      by: ['classId'],
+      where: {
+        school: {
+          aamarId: aamarId
+        }
+      },
+      _count: {
+        id: true
+      }
+    });
+
+    // Get school-wise distribution
+    const schoolWiseCount = await prisma.subject.groupBy({
+      by: ['schoolId'],
+      where: {
+        school: {
+          aamarId: aamarId
+        }
+      },
+      _count: {
+        id: true
+      }
+    });
 
     return {
       success: true,
-      data: stats
+      data: {
+        totalSubjects,
+        newThisMonth,
+        classWiseCount,
+        schoolWiseCount,
+      }
     };
 
   } catch (error) {
     console.error('Error fetching subject stats:', error);
     return {
       success: false,
-      error: 'Failed to fetch statistics'
+      error: 'Failed to fetch subject statistics'
     };
   }
 }
@@ -458,40 +458,44 @@ export async function searchSubjects(query: string, aamarId: string = '234567') 
   try {
     const subjects = await prisma.subject.findMany({
       where: {
-        aamarId: aamarId,
+        school: {
+          aamarId: aamarId
+        },
         OR: [
-          { name: { contains: query, mode: 'insensitive' } },
-          { code: { contains: query, mode: 'insensitive' } },
-          { description: { contains: query, mode: 'insensitive' } }
+          {
+            name: {
+              contains: query,
+              mode: 'insensitive'
+            }
+          },
+          {
+            code: {
+              contains: query,
+              mode: 'insensitive'
+            }
+          },
+          {
+            description: {
+              contains: query,
+              mode: 'insensitive'
+            }
+          }
         ]
       },
       include: {
         school: true,
         class: {
           include: {
-            _count: {
-              select: {
-                students: true
-              }
-            },
             branch: true
           }
         },
         chapters: {
           include: {
-            lessons: {
-              orderBy: {
-                orderIndex: 'asc'
-              }
-            },
             _count: {
               select: {
                 lessons: true
               }
             }
-          },
-          orderBy: {
-            orderIndex: 'asc'
           }
         },
         _count: {
@@ -501,9 +505,7 @@ export async function searchSubjects(query: string, aamarId: string = '234567') 
           }
         }
       },
-      orderBy: {
-        name: 'asc'
-      }
+      take: 20
     });
 
     const formattedSubjects = subjects.map(subject => ({
@@ -518,9 +520,7 @@ export async function searchSubjects(query: string, aamarId: string = '234567') 
       class: {
         id: subject.class.id,
         name: subject.class.name,
-        section: subject.class.section,
-        displayName: `${subject.class.name} - ${subject.class.section}`,
-        studentCount: subject.class._count.students,
+        displayName: subject.class.name,
         branch: subject.class.branch.name,
       },
       chapters: subject.chapters.map(chapter => ({
@@ -529,16 +529,6 @@ export async function searchSubjects(query: string, aamarId: string = '234567') 
         description: chapter.description,
         orderIndex: chapter.orderIndex,
         lessonsCount: chapter._count.lessons,
-        lessons: chapter.lessons.map(lesson => ({
-          id: lesson.id,
-          name: lesson.name,
-          description: lesson.description,
-          orderIndex: lesson.orderIndex,
-          duration: lesson.duration,
-          lessonType: lesson.lessonType,
-          type: lesson.lessonType,
-          status: 'Active'
-        }))
       })),
       totalChapters: subject._count.chapters,
       totalTimetables: subject._count.timetables,
@@ -741,7 +731,7 @@ export async function deleteChapter(chapterId: string): Promise<SubjectResult> {
 
 // ============= LESSON ACTIONS =============
 
-// Create new lesson
+// Create lesson
 export async function createLesson(formData: FormData): Promise<SubjectResult> {
   try {
     const data = {
@@ -749,29 +739,28 @@ export async function createLesson(formData: FormData): Promise<SubjectResult> {
       description: formData.get('description') as string,
       orderIndex: parseInt(formData.get('orderIndex') as string),
       duration: formData.get('duration') as string,
-      lessonType: formData.get('lessonType') as string || 'Theory',
+      lessonType: formData.get('lessonType') as string,
       chapterId: formData.get('chapterId') as string,
-      aamarId: formData.get('aamarId') as string || '234567',
     };
 
     // Validate required fields
-    if (!data.name || !data.chapterId || isNaN(data.orderIndex)) {
+    if (!data.name || !data.chapterId) {
       return {
         success: false,
-        message: 'Required fields are missing or invalid'
+        message: 'Required fields are missing'
       };
     }
 
     // Create lesson
-    const lesson = await prisma.lesson.create({
+    await prisma.lesson.create({
       data: {
         name: data.name,
         description: data.description,
         orderIndex: data.orderIndex,
         duration: data.duration,
-        lessonType: data.lessonType,
+        lessonType: data.lessonType as LessonType,
         chapterId: data.chapterId,
-        aamarId: data.aamarId,
+        aamarId: '234567', // Default aamarId
       }
     });
 
@@ -779,17 +768,14 @@ export async function createLesson(formData: FormData): Promise<SubjectResult> {
 
     return {
       success: true,
-      message: `Lesson ${data.name} created successfully!`,
-      data: {
-        lessonId: lesson.id,
-      },
+      message: 'Lesson created successfully!',
     };
 
   } catch (error) {
     console.error('Create lesson error:', error);
     return {
       success: false,
-      message: 'Failed to create lesson. Please try again.',
+      message: error instanceof Error ? error.message : 'Failed to create lesson. Please try again.',
     };
   }
 }
@@ -828,14 +814,14 @@ export async function updateLesson(lessonId: string, formData: FormData): Promis
       description: formData.get('description') as string,
       orderIndex: parseInt(formData.get('orderIndex') as string),
       duration: formData.get('duration') as string,
-      lessonType: formData.get('lessonType') as string || 'Theory',
+      lessonType: formData.get('lessonType') as string,
     };
 
     // Validate required fields
-    if (!data.name || isNaN(data.orderIndex)) {
+    if (!data.name) {
       return {
         success: false,
-        message: 'Required fields are missing or invalid'
+        message: 'Required fields are missing'
       };
     }
 
@@ -847,7 +833,7 @@ export async function updateLesson(lessonId: string, formData: FormData): Promis
         description: data.description,
         orderIndex: data.orderIndex,
         duration: data.duration,
-        lessonType: data.lessonType,
+        lessonType: data.lessonType as LessonType,
       }
     });
 
@@ -855,14 +841,14 @@ export async function updateLesson(lessonId: string, formData: FormData): Promis
 
     return {
       success: true,
-      message: `Lesson ${data.name} updated successfully!`,
+      message: 'Lesson updated successfully!',
     };
 
   } catch (error) {
     console.error('Update lesson error:', error);
     return {
       success: false,
-      message: 'Failed to update lesson. Please try again.',
+      message: error instanceof Error ? error.message : 'Failed to update lesson. Please try again.',
     };
   }
 }

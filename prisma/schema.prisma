@@ -179,6 +179,7 @@ model Class {
   subjects      Subject[]
   timetables    Timetable[]
   sections      Section[]
+  students      Student[]
   exams         Exam[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -271,6 +272,8 @@ model Student {
   admissionDate DateTime
   sectionId     String
   section       Section   @relation(fields: [sectionId], references: [id])
+  classId     String
+  class       Class   @relation(fields: [classId], references: [id])
   parentId      String?
   parent        Parent?   @relation(fields: [parentId], references: [id])
   attendance    Attendance[]

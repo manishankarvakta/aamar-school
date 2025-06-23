@@ -891,7 +891,7 @@ export default function ExamsPage() {
                       <p className="text-xs text-muted-foreground">{student.rollNo}</p>
                     </div>
                     <div className="w-20">
-                      <Input placeholder="Marks" size="sm" />
+                      <Input placeholder="Marks" />
                     </div>
                     <div className="w-16 text-xs text-muted-foreground">
                       / 100

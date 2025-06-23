@@ -196,16 +196,14 @@ export function AdmissionForm({ open, onOpenChange, onSuccess }: AdmissionFormPr
   const loadClasses = async () => {
     setIsLoadingClasses(true);
     try {
-      const aamarId = '234567'; // Organization ID from seeded data
-      console.log('Loading classes for organization:', aamarId);
-      const result = await getClassesByAamarId(aamarId);
+      const result = await getClassesByAamarId();
       
       if (result.success) {
         console.log('Loaded classes:', result.data);
         setClasses(result.data as ClassOption[]);
         
         // Reset class selection if current class is not in the new list
-        if (formData.classId && !result.data.find((c: any) => c.id === formData.classId)) {
+        if (formData.classId && !(result.data as ClassOption[]).find((c) => c.id === formData.classId)) {
           updateFormData('classId', '');
         }
       } else {

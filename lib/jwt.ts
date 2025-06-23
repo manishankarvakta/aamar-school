@@ -10,17 +10,8 @@ export interface DecodedToken {
   exp: number;
 }
 
-function getJwtSecret(): string {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) {
-    console.error('JWT_SECRET is not defined');
-    throw new Error('JWT_SECRET is not defined');
-  }
-  return secret;
-}
-
 export function signToken(payload: Omit<DecodedToken, 'iat' | 'exp'>): string {
-  // @ts-ignore
+  // @ts-expect-error - JWT secret is validated at runtime
   return jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRATION || '1h',
   });
@@ -28,7 +19,7 @@ export function signToken(payload: Omit<DecodedToken, 'iat' | 'exp'>): string {
 
 export function verifyToken(token: string): Promise<DecodedToken> {
   return new Promise((resolve, reject) => {
-    // @ts-ignore
+    // @ts-expect-error - JWT secret is validated at runtime
     jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
       if (err) {
         return reject(err);

@@ -199,13 +199,35 @@ export default function TeachersPage() {
       
       // Get all teachers at once (no server-side pagination)
       const [teachersResult, statsResult] = await Promise.all([
-        getTeachers('234567', 1, 100), // Get all teachers
-        getTeacherStats('234567')
+        getTeachers(1, 100), // Get all teachers
+        getTeacherStats()
       ]);
 
       if (teachersResult.success) {
-        setTeachers(teachersResult.data || []);
-        setFilteredTeachers(teachersResult.data || []);
+        // Transform TeacherData to match Teacher interface
+        const transformedTeachers = (teachersResult.data || []).map((teacher: any) => ({
+          id: teacher.id,
+          teacherId: teacher.teacherId,
+          employeeId: teacher.employeeId,
+          name: teacher.name,
+          firstName: teacher.firstName,
+          lastName: teacher.lastName,
+          email: teacher.email,
+          phone: teacher.phone,
+          qualification: teacher.qualification,
+          experience: teacher.experience,
+          specialization: teacher.specialization || '',
+          subjects: [], // TODO: Get from teacher data
+          branch: teacher.branch || { id: '', name: '' },
+          school: { name: teacher.branch?.name || 'School' },
+          totalClasses: teacher.totalClasses || 0,
+          totalSubjects: 0, // TODO: Get from teacher data
+          status: teacher.isActive ? 'Active' : 'Inactive',
+          joiningDate: teacher.joiningDate || new Date(),
+        }));
+        
+        setTeachers(transformedTeachers);
+        setFilteredTeachers(transformedTeachers);
       }
 
       if (statsResult.success) {

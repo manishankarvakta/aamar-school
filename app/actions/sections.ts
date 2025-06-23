@@ -1,7 +1,8 @@
-'use server';
+"use server";
 
-import { prisma } from '@/lib/prisma';
-import { revalidatePath } from 'next/cache';
+import { prisma } from "@/lib/prisma";
+import { revalidatePath } from "next/cache";
+import { requireAuth } from "@/lib/session";
 
 export interface SectionResult {
   success: boolean;
@@ -10,262 +11,258 @@ export interface SectionResult {
 }
 
 // Create a new section
-export async function createSection(formData: FormData): Promise<SectionResult> {
+export async function createSection(
+  formData: FormData,
+): Promise<SectionResult> {
   try {
+    // Get session data for multi-tenancy
+    const session = await requireAuth();
+
     const data = {
-      name: formData.get('name') as string,
-      capacity: parseInt(formData.get('capacity') as string) || 40,
-      subjectId: formData.get('subjectId') as string,
+      name: formData.get("name") as string,
+      capacity: parseInt(formData.get("capacity") as string) || 40,
+      classId: formData.get("classId") as string,
     };
 
     // Validate required fields
-    if (!data.name || !data.subjectId) {
+    if (!data.name || !data.classId) {
       return {
         success: false,
-        message: 'Required fields are missing'
+        message: "Required fields are missing",
       };
     }
 
-    // Get subject info for displayName
-    const subjectInfo = await prisma.subject.findUnique({
-      where: { id: data.subjectId },
+    // Get class info for displayName
+    const classInfo = await prisma.class.findFirst({
+      where: {
+        id: data.classId,
+        aamarId: session.aamarId,
+      },
       include: {
-        class: true
-      }
+        branch: true,
+      },
     });
 
-    if (!subjectInfo) {
+    if (!classInfo) {
       return {
         success: false,
-        message: 'Subject not found'
+        message: "Class not found",
       };
     }
 
-    // Check if section already exists for this subject
+    // Check if section already exists for this class
     const existingSection = await prisma.section.findFirst({
       where: {
-        subjectId: data.subjectId,
-        name: data.name
-      }
+        classId: data.classId,
+        name: data.name,
+        aamarId: session.aamarId,
+      },
     });
 
     if (existingSection) {
       return {
         success: false,
-        message: `Section ${data.name} already exists for ${subjectInfo.name}`
+        message: `Section ${data.name} already exists for ${classInfo.name}`,
       };
     }
 
     // Create section
     const section = await prisma.section.create({
       data: {
-        aamarId: '234567',
+        aamarId: session.aamarId,
         name: data.name,
-        displayName: `${subjectInfo.name} Section ${data.name}`,
+        displayName: `${classInfo.name} Section ${data.name}`,
         capacity: data.capacity,
-        subjectId: data.subjectId,
+        classId: data.classId,
       },
     });
 
-    revalidatePath('/dashboard/subjects');
+    revalidatePath("/dashboard/classes");
 
     return {
       success: true,
       message: `Section ${section.displayName} created successfully!`,
-      data: section
+      data: section,
     };
-
   } catch (error) {
-    console.error('Create section error:', error);
+    console.error("Create section error:", error);
     return {
       success: false,
-      message: 'Failed to create section. Please try again.',
+      message: "Failed to create section. Please try again.",
     };
   }
 }
 
-// Get all sections for a specific subject
-export async function getSectionsBySubject(subjectId: string) {
+// Get all sections for a specific class
+export async function getSectionsByClass(classId: string) {
   try {
+    // Get session data for multi-tenancy
+    const session = await requireAuth();
+
     const sections = await prisma.section.findMany({
       where: {
-        subjectId: subjectId
+        classId: classId,
+        aamarId: session.aamarId,
       },
       include: {
-        subject: {
+        class: {
           include: {
-            class: {
-              include: {
-                branch: true
-              }
-            }
-          }
+            branch: true,
+          },
         },
         students: {
           include: {
-            user: true
-          }
+            user: true,
+          },
         },
         _count: {
           select: {
-            students: true
-          }
-        }
+            students: true,
+          },
+        },
       },
       orderBy: {
-        name: 'asc'
-      }
+        name: "asc",
+      },
     });
 
-    const formattedSections = sections.map(section => ({
+    const formattedSections = sections.map((section) => ({
       id: section.id,
       name: section.name,
       displayName: section.displayName,
       capacity: section.capacity,
       studentCount: section._count.students,
       availableSlots: section.capacity - section._count.students,
-      subject: {
-        id: section.subject.id,
-        name: section.subject.name,
-        code: section.subject.code,
-        class: {
-          id: section.subject.class.id,
-          name: section.subject.class.name,
-          branch: section.subject.class.branch.name,
-        }
+      class: {
+        id: section.class.id,
+        name: section.class.name,
+        branch: section.class.branch.name,
       },
-      students: section.students.map(student => ({
+      students: section.students.map((student) => ({
         id: student.id,
         name: `${student.user.firstName} ${student.user.lastName}`,
         rollNumber: student.rollNumber,
-        email: student.user.email
-      }))
+        email: student.user.email,
+      })),
     }));
 
     return {
       success: true,
-      data: formattedSections
+      data: formattedSections,
     };
-
   } catch (error) {
-    console.error('Error fetching sections:', error);
+    console.error("Error fetching sections:", error);
     return {
       success: false,
-      error: 'Failed to fetch sections'
+      error: "Failed to fetch sections",
     };
   }
 }
 
 // Get all sections
-export async function getSections(aamarId: string = '234567') {
+export async function getSections() {
   try {
+    // Get session data for multi-tenancy
+    const session = await requireAuth();
+
     const sections = await prisma.section.findMany({
       where: {
-        aamarId: aamarId
+        aamarId: session.aamarId,
       },
       include: {
-        subject: {
+        class: {
           include: {
-            class: {
+            branch: true,
+            teacher: {
               include: {
-                branch: true,
-                teacher: {
-                  include: {
-                    user: true
-                  }
-                }
-              }
-            }
-          }
+                user: true,
+              },
+            },
+          },
         },
         _count: {
           select: {
-            students: true
-          }
-        }
+            students: true,
+          },
+        },
       },
       orderBy: [
         {
-          subject: {
-            class: {
-              name: 'asc'
-            }
-          }
+          class: {
+            name: "asc",
+          },
         },
         {
-          subject: {
-            name: 'asc'
-          }
+          name: "asc",
         },
-        {
-          name: 'asc'
-        }
-      ]
+      ],
     });
 
-    const formattedSections = sections.map(section => ({
+    const formattedSections = sections.map((section) => ({
       id: section.id,
       name: section.name,
       displayName: section.displayName,
       capacity: section.capacity,
       studentCount: section._count.students,
       availableSlots: section.capacity - section._count.students,
-      occupancyRate: Math.round((section._count.students / section.capacity) * 100),
-      subject: {
-        id: section.subject.id,
-        name: section.subject.name,
-        code: section.subject.code,
-        class: {
-          id: section.subject.class.id,
-          name: section.subject.class.name,
-          academicYear: section.subject.class.academicYear,
-          branch: section.subject.class.branch.name,
-          teacher: section.subject.class.teacher ? `${section.subject.class.teacher.user.firstName} ${section.subject.class.teacher.user.lastName}` : 'Not assigned'
-        }
+      occupancyRate: Math.round(
+        (section._count.students / section.capacity) * 100,
+      ),
+      class: {
+        id: section.class.id,
+        name: section.class.name,
+        academicYear: section.class.academicYear,
+        branch: section.class.branch.name,
+        teacher: section.class.teacher
+          ? `${section.class.teacher.user.firstName} ${section.class.teacher.user.lastName}`
+          : "Not assigned",
       },
-      status: section._count.students >= section.capacity ? 'Full' : 'Available'
+      status:
+        section._count.students >= section.capacity ? "Full" : "Available",
     }));
 
     return {
       success: true,
-      data: formattedSections
+      data: formattedSections,
     };
-
   } catch (error) {
-    console.error('Error fetching sections:', error);
+    console.error("Error fetching sections:", error);
     return {
       success: false,
-      error: 'Failed to fetch sections'
+      error: "Failed to fetch sections",
     };
   }
 }
 
 // Update section
-export async function updateSection(sectionId: string, formData: FormData): Promise<SectionResult> {
+export async function updateSection(
+  sectionId: string,
+  formData: FormData,
+): Promise<SectionResult> {
   try {
     const data = {
-      name: formData.get('name') as string,
-      capacity: parseInt(formData.get('capacity') as string) || 40,
+      name: formData.get("name") as string,
+      capacity: parseInt(formData.get("capacity") as string) || 40,
     };
 
     // Validate required fields
     if (!data.name) {
       return {
         success: false,
-        message: 'Section name is required'
+        message: "Section name is required",
       };
     }
 
     // Get section with class info
     const existingSection = await prisma.section.findUnique({
       where: { id: sectionId },
-      include: { class: true }
+      include: { class: true },
     });
 
     if (!existingSection) {
       return {
         success: false,
-        message: 'Section not found'
+        message: "Section not found",
       };
     }
 
@@ -274,14 +271,14 @@ export async function updateSection(sectionId: string, formData: FormData): Prom
       where: {
         classId: existingSection.classId,
         name: data.name,
-        id: { not: sectionId }
-      }
+        id: { not: sectionId },
+      },
     });
 
     if (duplicateSection) {
       return {
         success: false,
-        message: `Section ${data.name} already exists for ${existingSection.class.name}`
+        message: `Section ${data.name} already exists for ${existingSection.class.name}`,
       };
     }
 
@@ -292,22 +289,21 @@ export async function updateSection(sectionId: string, formData: FormData): Prom
         name: data.name,
         displayName: `${existingSection.class.name} ${data.name}`,
         capacity: data.capacity,
-      }
+      },
     });
 
-    revalidatePath('/dashboard/classes');
+    revalidatePath("/dashboard/classes");
 
     return {
       success: true,
       message: `Section ${updatedSection.displayName} updated successfully!`,
-      data: updatedSection
+      data: updatedSection,
     };
-
   } catch (error) {
-    console.error('Update section error:', error);
+    console.error("Update section error:", error);
     return {
       success: false,
-      message: 'Failed to update section. Please try again.',
+      message: "Failed to update section. Please try again.",
     };
   }
 }
@@ -320,76 +316,84 @@ export async function deleteSection(sectionId: string): Promise<SectionResult> {
       where: { id: sectionId },
       include: {
         students: true,
-        class: true
-      }
+        class: true,
+      },
     });
 
     if (!section) {
       return {
         success: false,
-        message: 'Section not found'
+        message: "Section not found",
       };
     }
 
     if (section.students.length > 0) {
       return {
         success: false,
-        message: `Cannot delete section ${section.displayName}. It has ${section.students.length} students enrolled.`
+        message: `Cannot delete section ${section.displayName}. It has ${section.students.length} students enrolled.`,
       };
     }
 
     // Delete section
     await prisma.section.delete({
-      where: { id: sectionId }
+      where: { id: sectionId },
     });
 
-    revalidatePath('/dashboard/classes');
+    revalidatePath("/dashboard/classes");
 
     return {
       success: true,
-      message: `Section ${section.displayName} deleted successfully!`
+      message: `Section ${section.displayName} deleted successfully!`,
     };
-
   } catch (error) {
-    console.error('Delete section error:', error);
+    console.error("Delete section error:", error);
     return {
       success: false,
-      message: 'Failed to delete section. Please try again.',
+      message: "Failed to delete section. Please try again.",
     };
   }
 }
 
 // Get section statistics
-export async function getSectionStats(aamarId: string = '234567') {
+export async function getSectionStats() {
   try {
-    const [totalSections, totalStudents, totalCapacity, averageOccupancy] = await Promise.all([
-      prisma.section.count({
-        where: { aamarId }
-      }),
-      prisma.student.count({
-        where: { aamarId }
-      }),
-      prisma.section.aggregate({
-        where: { aamarId },
-        _sum: { capacity: true }
-      }),
-      prisma.section.findMany({
-        where: { aamarId },
-        include: {
-          _count: {
-            select: { students: true }
-          }
-        }
-      })
-    ]);
+    // Get session data for multi-tenancy
+    const session = await requireAuth();
 
-    const occupancyData = averageOccupancy.map(section => ({
-      occupancy: section.capacity > 0 ? (section._count.students / section.capacity) * 100 : 0
+    const [totalSections, totalStudents, totalCapacity, averageOccupancy] =
+      await Promise.all([
+        prisma.section.count({
+          where: { aamarId: session.aamarId },
+        }),
+        prisma.student.count({
+          where: { aamarId: session.aamarId },
+        }),
+        prisma.section.aggregate({
+          where: { aamarId: session.aamarId },
+          _sum: { capacity: true },
+        }),
+        prisma.section.findMany({
+          where: { aamarId: session.aamarId },
+          include: {
+            _count: {
+              select: { students: true },
+            },
+          },
+        }),
+      ]);
+
+    const occupancyData = averageOccupancy.map((section) => ({
+      occupancy:
+        section.capacity > 0
+          ? (section._count.students / section.capacity) * 100
+          : 0,
     }));
 
-    const avgOccupancy = occupancyData.length > 0 
-      ? occupancyData.reduce((sum, item) => sum + item.occupancy, 0) / occupancyData.length 
-      : 0;
+    const avgOccupancy =
+      occupancyData.length > 0
+        ? occupancyData.reduce((sum, item) => sum + item.occupancy, 0) /
+          occupancyData.length
+        : 0;
 
     return {
       success: true,
@@ -398,15 +402,14 @@ export async function getSectionStats(aamarId: string = '234567') {
         totalStudents,
         totalCapacity: totalCapacity._sum.capacity || 0,
         averageOccupancy: Math.round(avgOccupancy),
-        availableSlots: (totalCapacity._sum.capacity || 0) - totalStudents
-      }
+        availableSlots: (totalCapacity._sum.capacity || 0) - totalStudents,
+      },
     };
-
   } catch (error) {
-    console.error('Error fetching section stats:', error);
+    console.error("Error fetching section stats:", error);
     return {
       success: false,
-      error: 'Failed to fetch section statistics'
+      error: "Failed to fetch section statistics",
     };
   }
-} 
+}

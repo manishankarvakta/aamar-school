@@ -8,18 +8,20 @@ export interface CreateStudentData {
   userId: string;
   rollNumber: string;
   admissionDate: Date;
-  classId: string;
+  sectionId: string;
   parentId?: string;
+  aamarId: string;
 }
 
 export async function createStudent(data: CreateStudentData) {
   try {
     const student = await db.student.create({
       data: {
+        aamarId: data.aamarId,
         userId: data.userId,
         rollNumber: data.rollNumber,
         admissionDate: data.admissionDate,
-        classId: data.classId,
+        sectionId: data.sectionId,
         parentId: data.parentId,
       },
       include: {
@@ -28,7 +30,11 @@ export async function createStudent(data: CreateStudentData) {
             profile: true,
           },
         },
-        class: true,
+        section: {
+          include: {
+            class: true,
+          },
+        },
         parent: {
           include: {
             user: true,
@@ -48,14 +54,22 @@ export async function createStudent(data: CreateStudentData) {
 export async function getStudentsByClass(classId: string) {
   try {
     const students = await db.student.findMany({
-      where: { classId },
+      where: { 
+        section: {
+          classId: classId
+        }
+      },
       include: {
         user: {
           include: {
             profile: true,
           },
         },
-        class: true,
+        section: {
+          include: {
+            class: true,
+          },
+        },
         parent: {
           include: {
             user: true,
@@ -72,7 +86,7 @@ export async function getStudentsByClass(classId: string) {
   }
 }
 
-export async function markAttendance(studentId: string, date: Date, status: AttendanceStatus, remarks?: string) {
+export async function markAttendance(studentId: string, date: Date, status: AttendanceStatus, remarks?: string, aamarId: string = '234567') {
   try {
     const attendance = await db.attendance.upsert({
       where: {
@@ -86,6 +100,7 @@ export async function markAttendance(studentId: string, date: Date, status: Atte
         remarks,
       },
       create: {
+        aamarId,
         studentId,
         date,
         status,
@@ -131,15 +146,18 @@ export async function getAttendanceByStudent(studentId: string, startDate?: Date
   }
 }
 
-export async function addExamResult(studentId: string, examType: string, subject: string, marks: number, grade: string, remarks?: string) {
+export async function addExamResult(studentId: string, examId: string, subjectId: string, obtainedMarks: number, fullMarks: number, grade: string, gpa?: number, remarks?: string, aamarId: string = '234567') {
   try {
     const examResult = await db.examResult.create({
       data: {
+        aamarId,
+        examId,
         studentId,
-        examType,
-        subject,
-        marks,
+        subjectId,
+        obtainedMarks,
+        fullMarks,
         grade,
+        gpa,
         remarks,
       },
       include: {
