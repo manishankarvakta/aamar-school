@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useFormState } from 'react-dom';
+import { useState, useEffect, useActionState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -123,7 +122,7 @@ export function AdmissionForm({ open, onOpenChange, onSuccess }: AdmissionFormPr
   const [generatedRollNumber, setGeneratedRollNumber] = useState('');
   const [isGeneratingRoll, setIsGeneratingRoll] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
-  const [formState, formAction] = useFormState(createStudentWithParent, { success: false, message: '' });
+  const [formState, formAction] = useActionState(createStudentWithParent, { success: false, message: '' });
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
   // Form data state for persistence across steps

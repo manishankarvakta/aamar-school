@@ -33,7 +33,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -76,6 +75,7 @@ export default function StudentsPage() {
   const [error, setError] = useState<string | null>(null);
 
   console.log("paginatedStudents", paginatedStudents);
+  console.log("All student's details:", filteredStudents);
   // Filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedClass, setSelectedClass] = useState("all");
@@ -603,6 +603,7 @@ export default function StudentsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>No.</TableHead>
                   <TableHead>Student</TableHead>
                   <TableHead>Roll Number</TableHead>
                   <TableHead>Class</TableHead>
@@ -615,7 +616,7 @@ export default function StudentsPage() {
               </TableHeader>
               <TableBody>
                 {paginatedStudents && paginatedStudents?.length > 0 ? (
-                  paginatedStudents?.map((student: any) => {
+                  paginatedStudents?.map((student: any, index) => {
                     const user = student?.user;
                     const profile = user?.profile;
                     const parent = student?.parent;
@@ -628,6 +629,11 @@ export default function StudentsPage() {
 
                     return (
                       <TableRow key={student?.id}>
+                        <TableCell>
+                          <div className="flex items-center space-x-3">
+                            {index + 1}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <div className="flex items-center space-x-3">
                             <Avatar className="h-8 w-8">
@@ -715,9 +721,9 @@ export default function StudentsPage() {
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
-                            <Button variant="ghost" size="sm">
+                            {/* <Button variant="ghost" size="sm">
                               <MoreHorizontal className="h-4 w-4" />
-                            </Button>
+                            </Button> */}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -1364,7 +1370,9 @@ export default function StudentsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {filteredStudents.slice(0, 3).map((student: any) => {
+              {filteredStudents
+              .slice(0, 5)
+              .map((student: any) => {
                 const totalAttendance = student.attendance.length;
                 const presentCount = student.attendance.filter(
                   (a: any) => a.status === "PRESENT",
@@ -1398,7 +1406,8 @@ export default function StudentsPage() {
                           : "text-green-600"
                       }
                     >
-                      {attendancePercentage.toFixed(0)}%
+                      {/* {attendancePercentage.toFixed(0)}% */}
+                      {attendancePercentage}%
                     </Badge>
                   </div>
                 );
