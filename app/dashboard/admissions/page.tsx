@@ -215,8 +215,10 @@ export default function AdmissionsPage() {
   };
 
   const handleCloseDialog = (open: boolean) => {
-    console.log('Dialog open state changed to:', open);
     setShowAddDialog(open);
+    if (!open) {
+      loadDashboardData(); // Only reload when dialog is closed
+    }
   };
 
   // Handle search input with debounce effect

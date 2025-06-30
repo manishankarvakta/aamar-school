@@ -56,6 +56,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { getBranchesByAamarId } from "@/app/actions/branches";
 // Import server actions - Note: Server actions file created, ready to use
 // import {
 //   getParents,
@@ -174,20 +175,55 @@ export default function ParentsPage() {
     useState<ParentDetails | null>(null);
 
   // Form states
-  const [actionLoading, setActionLoading] = useState(false);
+  const [loadingParentId, setLoadingParentId] = useState<string | null>(null);
   const [messageText, setMessageText] = useState("");
   const [messageSubject, setMessageSubject] = useState("");
   const [appointmentDate, setAppointmentDate] = useState("");
   const [appointmentTime, setAppointmentTime] = useState("");
   const [appointmentPurpose, setAppointmentPurpose] = useState("");
 
+  // New state for editLoading
+  const [editLoading, setEditLoading] = useState(false);
+
+  // Add at the top with other states:
+  const [addLoading, setAddLoading] = useState(false);
+
+  // New state for branches fetched by aamarId
+  const [branches, setBranches] = useState<any[]>([]);
+  const [branchLoading, setBranchLoading] = useState(false);
+
+  // Example: get aamarId from somewhere (props, context, or hardcoded for now)
+  const aamarId = "YOUR_AAMAR_ID_HERE"; // TODO: Replace with real aamarId source
+
   const { toast } = useToast();
+
+  console.log('getting branches:',branches)
+  
 
   // Fetch data on component mount
   useEffect(() => {
     fetchParents();
     fetchStats();
   }, []);
+
+  // Fetch branches by aamarId on mount
+  useEffect(() => {
+    async function fetchBranches() {
+      setBranchLoading(true);
+      // Try to fetch multiple branches (future-proof)
+      const result = await getBranchesByAamarId(aamarId);
+      if (result.success && Array.isArray(result.data)) {
+        setBranches(result.data);
+      } else if (result.success && result.data) {
+        // Fallback: single branch
+        setBranches([result.data]);
+      } else {
+        setBranches([]);
+      }
+      setBranchLoading(false);
+    }
+    fetchBranches();
+  }, [aamarId]);
 
   // Search and filter effect - this should be the main filtering logic
   useEffect(() => {
@@ -335,7 +371,7 @@ export default function ParentsPage() {
 
   const handleViewDetails = async (parent: Parent) => {
     try {
-      setActionLoading(true);
+      setLoadingParentId(parent.id);
       const result = await getParentById(parent.id);
       if (result.success && result.data) {
         // Transform parent details data to match ParentDetails interface
@@ -381,7 +417,7 @@ export default function ParentsPage() {
     } catch (error) {
       console.error("Failed to fetch parent details");
     } finally {
-      setActionLoading(false);
+      setLoadingParentId(null);
     }
   };
 
@@ -422,7 +458,7 @@ export default function ParentsPage() {
     }
 
     try {
-      setActionLoading(true);
+      setLoadingParentId(selectedParent.id);
 
       // Here you would integrate with your messaging system
       // For now, we'll simulate the action
@@ -440,7 +476,7 @@ export default function ParentsPage() {
     } catch (error) {
       console.error("Failed to send message");
     } finally {
-      setActionLoading(false);
+      setLoadingParentId(null);
     }
   };
 
@@ -456,7 +492,7 @@ export default function ParentsPage() {
     }
 
     try {
-      setActionLoading(true);
+      setLoadingParentId(selectedParent.id);
 
       // Here you would integrate with your calendar/appointment system
       console.log("Scheduling appointment with:", selectedParent.name);
@@ -475,7 +511,7 @@ export default function ParentsPage() {
     } catch (error) {
       console.error("Failed to schedule appointment");
     } finally {
-      setActionLoading(false);
+      setLoadingParentId(null);
     }
   };
 
@@ -499,7 +535,8 @@ export default function ParentsPage() {
 
   const handleCreateParent = async (formData: FormData) => {
     try {
-      setActionLoading(true);
+      setAddLoading(true);
+      setLoadingParentId(null);
 
       // Extract form data values
       const parentData = {
@@ -511,7 +548,7 @@ export default function ParentsPage() {
         dateOfBirth: formData.get("dateOfBirth") as string,
         gender: formData.get("gender") as "MALE" | "FEMALE" | "OTHER",
         occupation: formData.get("occupation") as string,
-        relationship: formData.get("relationship") as string,
+        relation: formData.get("relation") as string,
         emergencyContact: formData.get("emergencyContact") as string,
         branchId: formData.get("branchId") as string,
       };
@@ -529,16 +566,15 @@ export default function ParentsPage() {
     } catch (error) {
       console.error("Failed to create parent");
     } finally {
-      setActionLoading(false);
+      setLoadingParentId(null);
+      setAddLoading(false);
     }
   };
 
   const handleUpdateParent = async (formData: FormData) => {
     if (!selectedParent) return;
-
     try {
-      setActionLoading(true);
-
+      setEditLoading(true);
       // Extract form data values
       const parentData = {
         firstName: formData.get("firstName") as string,
@@ -549,7 +585,7 @@ export default function ParentsPage() {
         dateOfBirth: formData.get("dateOfBirth") as string,
         gender: formData.get("gender") as "MALE" | "FEMALE" | "OTHER",
         occupation: formData.get("occupation") as string,
-        relationship: formData.get("relationship") as string,
+        relation: formData.get("relation") as string,
         emergencyContact: formData.get("emergencyContact") as string,
         branchId: formData.get("branchId") as string,
       };
@@ -557,9 +593,33 @@ export default function ParentsPage() {
       const result = await updateParent(selectedParent.id, parentData);
 
       if (result.success) {
-        console.log("Parent updated successfully");
+        setParents((prev) =>
+          prev.map((p) =>
+            p.id === selectedParent.id
+              ? {
+                  ...p,
+                  ...parentData,
+                  name: `${parentData.firstName} ${parentData.lastName}`.trim(),
+                }
+              : p
+          )
+        );
+        setFilteredParents((prev) =>
+          prev.map((p) =>
+            p.id === selectedParent.id
+              ? {
+                  ...p,
+                  ...parentData,
+                  name: `${parentData.firstName} ${parentData.lastName}`.trim(),
+                }
+              : p
+          )
+        );
         setEditDialogOpen(false);
-        fetchParents();
+        toast({
+          title: "Success",
+          description: "Parent updated successfully",
+        });
         fetchStats();
       } else {
         console.error("Failed to update parent:", result.message);
@@ -567,7 +627,7 @@ export default function ParentsPage() {
     } catch (error) {
       console.error("Failed to update parent");
     } finally {
-      setActionLoading(false);
+      setEditLoading(false);
     }
   };
 
@@ -575,7 +635,7 @@ export default function ParentsPage() {
     if (!selectedParent) return;
 
     try {
-      setActionLoading(true);
+      setLoadingParentId(selectedParent.id);
       const result = await deleteParent(selectedParent.id);
 
       if (result.success) {
@@ -593,7 +653,7 @@ export default function ParentsPage() {
     } catch (error) {
       console.error("Failed to delete parent");
     } finally {
-      setActionLoading(false);
+      setLoadingParentId(null);
     }
   };
 
@@ -835,9 +895,9 @@ export default function ParentsPage() {
                                   size="sm"
                                   variant="outline"
                                   onClick={() => handleViewDetails(parent)}
-                                  disabled={actionLoading}
+                                  disabled={loadingParentId === parent.id}
                                 >
-                                  {actionLoading ? (
+                                  {loadingParentId === parent.id ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />
                                   ) : (
                                     <Eye className="h-4 w-4" />
@@ -1207,10 +1267,8 @@ export default function ParentsPage() {
                     >
                       Cancel
                     </Button>
-                    <Button type="submit" disabled={actionLoading}>
-                      {actionLoading && (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      )}
+                    <Button type="submit" disabled={editLoading}>
+                      {editLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                       Update Parent
                     </Button>
                   </div>
@@ -1268,9 +1326,9 @@ export default function ParentsPage() {
                 <Button
                   variant="destructive"
                   onClick={handleDeleteParent}
-                  disabled={actionLoading}
+                  disabled={loadingParentId === selectedParent?.id}
                 >
-                  {actionLoading && (
+                  {loadingParentId === selectedParent?.id && (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   )}
                   Delete Parent
@@ -1344,20 +1402,25 @@ export default function ParentsPage() {
                     <Label>Nationality</Label>
                     <Input name="nationality" />
                   </div>
+                  <div className="space-y-2">
+                    <Label>Branch *</Label>
+                    <Select name="branchId" required disabled={branchLoading || branches.length === 0}>
+                      <SelectTrigger>
+                        <SelectValue placeholder={branchLoading ? "Loading branches..." : "Select branch"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches.map(branch => (
+                          <SelectItem key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="col-span-2 space-y-2">
                     <Label>Address</Label>
                     <Textarea name="address" rows={3} />
                   </div>
-                  <input
-                    type="hidden"
-                    name="schoolId"
-                    value="clz123456schoolid"
-                  />
-                  <input
-                    type="hidden"
-                    name="branchId"
-                    value="clz123456branchid"
-                  />
                 </div>
                 <div className="flex justify-end space-x-2">
                   <Button
@@ -1367,10 +1430,8 @@ export default function ParentsPage() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={actionLoading}>
-                    {actionLoading && (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    )}
+                  <Button type="submit" disabled={addLoading}>
+                    {addLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                     Create Parent
                   </Button>
                 </div>
@@ -1410,8 +1471,8 @@ export default function ParentsPage() {
                 >
                   Cancel
                 </Button>
-                <Button onClick={handleSendMessage} disabled={actionLoading}>
-                  {actionLoading && (
+                <Button onClick={handleSendMessage} disabled={loadingParentId === selectedParent?.id}>
+                  {loadingParentId === selectedParent?.id && (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   )}
                   Send Message
@@ -1516,9 +1577,9 @@ export default function ParentsPage() {
                 </Button>
                 <Button
                   onClick={handleScheduleAppointment}
-                  disabled={actionLoading}
+                  disabled={loadingParentId === selectedParent?.id}
                 >
-                  {actionLoading && (
+                  {loadingParentId === selectedParent?.id && (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   )}
                   Schedule

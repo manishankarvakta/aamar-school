@@ -333,6 +333,7 @@ export async function createStudentWithParent(
               rollNumber: data.rollNumber,
               admissionDate: new Date(data.admissionDate),
               sectionId: data.sectionId,
+              classId: selectedSection.class.id,
               parentId: parentUser.parent!.id,
             },
           },
