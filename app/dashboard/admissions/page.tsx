@@ -775,10 +775,10 @@ export default function AdmissionsPage() {
       </Dialog>
 
       {/* Admission Form Dialog */}
-      <AdmissionForm 
-        open={showAddDialog} 
+      <AdmissionForm
+        key={showAddDialog ? 'open' : 'closed'}
+        open={showAddDialog}
         onOpenChange={handleCloseDialog}
-        onSuccess={handleAdmissionSuccess}
       />
 
       {/* View Details Dialog */}
