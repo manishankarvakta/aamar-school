@@ -82,20 +82,20 @@ enum TransactionType {
 }
 
 model User {
-  id            String    @id @default(cuid())
+  id            String         @id @default(cuid())
   aamarId       String
-  email         String    @unique
+  email         String         @unique
   password      String
   firstName     String
   lastName      String
   role          UserRole
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   schoolId      String
-  school        School    @relation(fields: [schoolId], references: [id])
+  school        School         @relation(fields: [schoolId], references: [id])
   branchId      String?
-  branch        Branch?   @relation(fields: [branchId], references: [id])
+  branch        Branch?        @relation(fields: [branchId], references: [id])
   profile       Profile?
   teacher       Teacher?
   student       Student?
@@ -107,373 +107,373 @@ model User {
 }
 
 model Profile {
-  id                  String    @id @default(cuid())
-  aamarId             String
-  userId              String    @unique
-  user                User      @relation(fields: [userId], references: [id])
-  email               String?
-  phone               String?
-  address             String?
-  avatar              String?
-  dateOfBirth         DateTime?
-  gender              Gender?
-  bloodGroup          String?
-  birthCertificateNo  String?
-  nIdNo               String?
-  nationality         String?
-  religion            String?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  id                 String    @id @default(cuid())
+  aamarId            String
+  userId             String    @unique
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email              String?
+  phone              String?
+  address            String?
+  avatar             String?
+  dateOfBirth        DateTime?
+  gender             Gender?
+  bloodGroup         String?
+  birthCertificateNo String?
+  nIdNo              String?
+  nationality        String?
+  religion           String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 }
 
 model School {
-  id            String    @id @default(cuid())
-  aamarId       String
-  name          String
-  code          String    @unique
-  address       String?
-  phone         String?
-  email         String?
-  website       String?
-  logo          String?
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  users         User[]
-  branches      Branch[]
-  subjects      Subject[]
-  books         Book[]
-  vehicles      Vehicle[]
-  exams         Exam[]
-  accounts      Account[]
+  id        String    @id @default(cuid())
+  aamarId   String
+  name      String
+  code      String    @unique
+  address   String?
+  phone     String?
+  email     String?
+  website   String?
+  logo      String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  users     User[]
+  branches  Branch[]
+  subjects  Subject[]
+  books     Book[]
+  vehicles  Vehicle[]
+  exams     Exam[]
+  accounts  Account[]
 }
 
 model Branch {
-  id            String    @id @default(cuid())
-  aamarId       String
-  name          String
-  code          String
-  address       String
-  phone         String
-  email         String
-  schoolId      String
-  school        School    @relation(fields: [schoolId], references: [id])
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  users         User[]
-  classes       Class[]
+  id        String   @id @default(cuid())
+  aamarId   String
+  name      String
+  code      String
+  address   String
+  phone     String
+  email     String
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
+  classes   Class[]
 
   @@unique([schoolId, code])
 }
 
 model Class {
-  id            String    @id @default(cuid())
-  aamarId       String
-  name          String
-  branchId      String
-  branch        Branch    @relation(fields: [branchId], references: [id])
-  academicYear  String
-  teacherId     String?
-  teacher       Teacher?  @relation(fields: [teacherId], references: [id])
-  subjects      Subject[]
-  timetables    Timetable[]
-  sections      Section[]
-  students      Student[]
-  exams         Exam[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String      @id @default(cuid())
+  aamarId      String
+  name         String
+  branchId     String
+  branch       Branch      @relation(fields: [branchId], references: [id])
+  academicYear String
+  teacherId    String?
+  teacher      Teacher?    @relation(fields: [teacherId], references: [id])
+  subjects     Subject[]
+  timetables   Timetable[]
+  sections     Section[]
+  students     Student[]
+  exams        Exam[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 }
 
 model Section {
-  id            String    @id @default(cuid())
-  aamarId       String
-  name          String    // A, B, C, etc.
-  displayName   String    // Math Section A, English Section B, etc.
-  capacity      Int       @default(40)
-  classId       String
-  class         Class     @relation(fields: [classId], references: [id])
-  students      Student[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id          String    @id @default(cuid())
+  aamarId     String
+  name        String // A, B, C, etc.
+  displayName String // Math Section A, English Section B, etc.
+  capacity    Int       @default(40)
+  classId     String
+  class       Class     @relation(fields: [classId], references: [id])
+  students    Student[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@unique([classId, name])
 }
 
 model Subject {
-  id            String    @id @default(cuid())
-  aamarId       String
-  name          String
-  code          String
-  description   String?
-  schoolId      String
-  school        School    @relation(fields: [schoolId], references: [id])
-  classId       String
-  class         Class     @relation(fields: [classId], references: [id])
-  chapters      Chapter[]
-  timetables    Timetable[]
-  examSubjects  ExamSubject[]
-  examResults   ExamResult[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String        @id @default(cuid())
+  aamarId      String
+  name         String
+  code         String
+  description  String?
+  schoolId     String
+  school       School        @relation(fields: [schoolId], references: [id])
+  classId      String
+  class        Class         @relation(fields: [classId], references: [id])
+  chapters     Chapter[]
+  timetables   Timetable[]
+  examSubjects ExamSubject[]
+  examResults  ExamResult[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model Chapter {
-  id            String    @id @default(cuid())
-  aamarId       String
-  name          String
-  description   String?
-  orderIndex    Int
-  subjectId     String
-  subject       Subject   @relation(fields: [subjectId], references: [id])
-  lessons       Lesson[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id          String   @id @default(cuid())
+  aamarId     String
+  name        String
+  description String?
+  orderIndex  Int
+  subjectId   String
+  subject     Subject  @relation(fields: [subjectId], references: [id])
+  lessons     Lesson[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Lesson {
-  id            String    @id @default(cuid())
-  aamarId       String
-  name          String
-  description   String?
-  orderIndex    Int
-  duration      String?
-  lessonType    LessonType    @default(THEORY) // Theory, Practice, Assignment, Lab
-  chapterId     String
-  chapter       Chapter   @relation(fields: [chapterId], references: [id])
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id          String     @id @default(cuid())
+  aamarId     String
+  name        String
+  description String?
+  orderIndex  Int
+  duration    String?
+  lessonType  LessonType @default(THEORY) // Theory, Practice, Assignment, Lab
+  chapterId   String
+  chapter     Chapter    @relation(fields: [chapterId], references: [id])
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 }
 
 model Teacher {
-  id              String    @id @default(cuid())
-  aamarId         String
-  userId          String    @unique
-  user            User      @relation(fields: [userId], references: [id])
-  qualification   String
-  experience      Int
-  specialization  String?
-  joiningDate     DateTime  @default(now())
-  salary          Float?
+  id               String       @id @default(cuid())
+  aamarId          String
+  userId           String       @unique
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  qualification    String
+  experience       Int
+  specialization   String?
+  joiningDate      DateTime     @default(now())
+  salary           Float?
   emergencyContact String?
-  subjects        String[]
-  classes         Class[]
-  attendance      Attendance[]
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  subjects         String[]
+  classes          Class[]
+  attendance       Attendance[]
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 }
 
 model Student {
-  id            String    @id @default(cuid())
-  aamarId       String
-  userId        String    @unique
-  user          User      @relation(fields: [userId], references: [id])
-  rollNumber    String
-  admissionDate DateTime
-  sectionId     String
-  section       Section   @relation(fields: [sectionId], references: [id])
-  classId     String
-  class       Class   @relation(fields: [classId], references: [id])
-  parentId      String?
-  parent        Parent?   @relation(fields: [parentId], references: [id])
-  attendance    Attendance[]
-  examResults   ExamResult[]
-  fees          Fee[]
+  id             String          @id @default(cuid())
+  aamarId        String
+  userId         String          @unique
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rollNumber     String
+  admissionDate  DateTime
+  sectionId      String
+  section        Section         @relation(fields: [sectionId], references: [id])
+  classId        String
+  class          Class           @relation(fields: [classId], references: [id])
+  parentId       String?
+  parent         Parent?         @relation(fields: [parentId], references: [id])
+  attendance     Attendance[]
+  examResults    ExamResult[]
+  fees           Fee[]
   bookBorrowings BookBorrowing[]
-  transactions  Transaction[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  transactions   Transaction[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 }
 
 model Parent {
-  id            String    @id @default(cuid())
-  aamarId       String
-  userId        String    @unique
-  user          User      @relation(fields: [userId], references: [id])
-  relation      String
-  students      Student[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id        String    @id @default(cuid())
+  aamarId   String
+  userId    String    @unique
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  relation  String
+  students  Student[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model Staff {
-  id            String    @id @default(cuid())
-  aamarId       String
-  userId        String    @unique
-  user          User      @relation(fields: [userId], references: [id])
-  designation   String
-  department    String
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id          String   @id @default(cuid())
+  aamarId     String
+  userId      String   @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  designation String
+  department  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Attendance {
-  id            String    @id @default(cuid())
-  aamarId       String
-  studentId     String?
-  student       Student?  @relation(fields: [studentId], references: [id])
-  teacherId     String?
-  teacher       Teacher?  @relation(fields: [teacherId], references: [id])
-  date          DateTime
-  status        AttendanceStatus
-  remarks       String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id        String           @id @default(cuid())
+  aamarId   String
+  studentId String?
+  student   Student?         @relation(fields: [studentId], references: [id])
+  teacherId String?
+  teacher   Teacher?         @relation(fields: [teacherId], references: [id])
+  date      DateTime
+  status    AttendanceStatus
+  remarks   String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 
   @@unique([studentId, date])
 }
 
 model Exam {
-  id            String    @id @default(cuid())
-  aamarId       String
-  name          String
-  examType      ExamType
-  description   String?
-  startDate     DateTime
-  endDate       DateTime
-  classId       String
-  class         Class     @relation(fields: [classId], references: [id])
-  schoolId      String
-  school        School    @relation(fields: [schoolId], references: [id])
-  subjects      ExamSubject[]
-  results       ExamResult[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id          String        @id @default(cuid())
+  aamarId     String
+  name        String
+  examType    ExamType
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  classId     String
+  class       Class         @relation(fields: [classId], references: [id])
+  schoolId    String
+  school      School        @relation(fields: [schoolId], references: [id])
+  subjects    ExamSubject[]
+  results     ExamResult[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 }
 
 model ExamSubject {
-  id            String    @id @default(cuid())
-  aamarId       String
-  examId        String
-  exam          Exam      @relation(fields: [examId], references: [id])
-  subjectId     String
-  subject       Subject   @relation(fields: [subjectId], references: [id])
-  fullMarks     Float
-  passMarks     Float
-  examDate      DateTime
-  duration      Int       // minutes
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  aamarId   String
+  examId    String
+  exam      Exam     @relation(fields: [examId], references: [id])
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  fullMarks Float
+  passMarks Float
+  examDate  DateTime
+  duration  Int // minutes
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([examId, subjectId])
 }
 
 model ExamResult {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   aamarId       String
   examId        String
-  exam          Exam      @relation(fields: [examId], references: [id])
+  exam          Exam     @relation(fields: [examId], references: [id])
   studentId     String
-  student       Student   @relation(fields: [studentId], references: [id])
+  student       Student  @relation(fields: [studentId], references: [id])
   subjectId     String
-  subject       Subject   @relation(fields: [subjectId], references: [id])
+  subject       Subject  @relation(fields: [subjectId], references: [id])
   obtainedMarks Float
   fullMarks     Float
   grade         String
   gpa           Float?
   remarks       String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@unique([examId, studentId, subjectId])
 }
 
 model Fee {
-  id            String    @id @default(cuid())
-  aamarId       String
-  feeType       FeeType
-  title         String
-  amount        Float
-  lateFee       Float?    @default(0)
-  dueDate       DateTime
-  status        PaymentStatus
-  studentId     String
-  student       Student   @relation(fields: [studentId], references: [id])
-  transactions  Transaction[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String        @id @default(cuid())
+  aamarId      String
+  feeType      FeeType
+  title        String
+  amount       Float
+  lateFee      Float?        @default(0)
+  dueDate      DateTime
+  status       PaymentStatus
+  studentId    String
+  student      Student       @relation(fields: [studentId], references: [id])
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 }
 
 model Timetable {
-  id            String    @id @default(cuid())
-  aamarId       String
-  dayOfWeek     Int
-  startTime     DateTime
-  endTime       DateTime
-  classId       String
-  class         Class     @relation(fields: [classId], references: [id])
-  subjectId     String
-  subject       Subject   @relation(fields: [subjectId], references: [id])
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  aamarId   String
+  dayOfWeek Int
+  startTime DateTime
+  endTime   DateTime
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id])
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Book {
-  id            String    @id @default(cuid())
-  aamarId       String
-  title         String
-  author        String
-  isbn          String
-  quantity      Int
-  available     Int
-  schoolId      String
-  school        School    @relation(fields: [schoolId], references: [id])
-  borrowings    BookBorrowing[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id         String          @id @default(cuid())
+  aamarId    String
+  title      String
+  author     String
+  isbn       String
+  quantity   Int
+  available  Int
+  schoolId   String
+  school     School          @relation(fields: [schoolId], references: [id])
+  borrowings BookBorrowing[]
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
 }
 
 model BookBorrowing {
-  id            String    @id @default(cuid())
-  aamarId       String
-  bookId        String
-  book          Book      @relation(fields: [bookId], references: [id])
-  studentId     String
-  student       Student   @relation(fields: [studentId], references: [id])
-  borrowDate    DateTime
-  returnDate    DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id         String    @id @default(cuid())
+  aamarId    String
+  bookId     String
+  book       Book      @relation(fields: [bookId], references: [id])
+  studentId  String
+  student    Student   @relation(fields: [studentId], references: [id])
+  borrowDate DateTime
+  returnDate DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }
 
 model Vehicle {
-  id            String    @id @default(cuid())
-  aamarId       String
-  number        String
-  type          String
-  capacity      Int
-  schoolId      String
-  school        School    @relation(fields: [schoolId], references: [id])
-  routes        Route[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id        String   @id @default(cuid())
+  aamarId   String
+  number    String
+  type      String
+  capacity  Int
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id])
+  routes    Route[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Route {
-  id            String    @id @default(cuid())
-  aamarId       String
-  name          String
-  startPoint    String
-  endPoint      String
-  vehicleId     String
-  vehicle       Vehicle   @relation(fields: [vehicleId], references: [id])
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-} 
+  id         String   @id @default(cuid())
+  aamarId    String
+  name       String
+  startPoint String
+  endPoint   String
+  vehicleId  String
+  vehicle    Vehicle  @relation(fields: [vehicleId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
 
 model Announcement {
-  id           String     @id @default(cuid())
-  aamarId      String
-  branchId     String?
-  title        String
-  message      String
-  audience     AudienceType[]
+  id               String           @id @default(cuid())
+  aamarId          String
+  branchId         String?
+  title            String
+  message          String
+  audience         AudienceType[]
   announcementType AnnouncementType // e.g., "General", "Urgent", "Event"
-  visibleFrom  DateTime
-  visibleUntil DateTime?
-  createdById  String
-  createdBy    User       @relation(fields: [createdById], references: [id])
-  createdAt    DateTime   @default(now())
+  visibleFrom      DateTime
+  visibleUntil     DateTime?
+  createdById      String
+  createdBy        User             @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt        DateTime         @default(now())
 }
 
 enum AudienceType {
@@ -484,7 +484,6 @@ enum AudienceType {
   ALL
 }
 
-
 enum AnnouncementType {
   GENERAL
   URGENT
@@ -493,10 +492,10 @@ enum AnnouncementType {
 }
 
 model ActivityLog {
-  id          String   @id @default(cuid())
+  id          String     @id @default(cuid())
   aamarId     String
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   branchId    String?
   action      ActionType
   module      String
@@ -504,7 +503,7 @@ model ActivityLog {
   description String?
   ipAddress   String?
   userAgent   String?
-  timestamp   DateTime @default(now())
+  timestamp   DateTime    @default(now())
 }
 
 enum ActionType {
@@ -519,34 +518,34 @@ enum ActionType {
 }
 
 model Account {
-  id            String    @id @default(cuid())
+  id            String        @id @default(cuid())
   aamarId       String
   name          String
   accountType   AccountType
-  accountNumber String    @unique
-  balance       Float     @default(0)
+  accountNumber String        @unique
+  balance       Float         @default(0)
   schoolId      String
-  school        School    @relation(fields: [schoolId], references: [id])
+  school        School        @relation(fields: [schoolId], references: [id])
   transactions  Transaction[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 }
 
 model Transaction {
-  id            String    @id @default(cuid())
-  aamarId       String
-  accountId     String
-  account       Account   @relation(fields: [accountId], references: [id])
+  id              String          @id @default(cuid())
+  aamarId         String
+  accountId       String
+  account         Account         @relation(fields: [accountId], references: [id])
   transactionType TransactionType
-  amount        Float
-  description   String?
-  reference     String?
-  studentId     String?   // for fee payments
-  student       Student?  @relation(fields: [studentId], references: [id])
-  feeId         String?   // linked fee record
-  fee           Fee?      @relation(fields: [feeId], references: [id])
-  createdById   String
-  createdBy     User      @relation(fields: [createdById], references: [id])
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  amount          Float
+  description     String?
+  reference       String?
+  studentId       String? // for fee payments
+  student         Student?        @relation(fields: [studentId], references: [id])
+  feeId           String? // linked fee record
+  fee             Fee?            @relation(fields: [feeId], references: [id])
+  createdById     String
+  createdBy       User            @relation(fields: [createdById], references: [id])
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 }
