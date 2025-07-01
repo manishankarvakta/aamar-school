@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import {
@@ -16,8 +16,6 @@ import {
   SearchIcon,
   UserIcon,
   CalendarIcon,
-  PhoneIcon,
-  MailIcon,
   CheckCircleIcon,
   XCircleIcon,
   ClockIcon,
@@ -31,12 +29,14 @@ import {
   getAdmissionApplications, 
   getAdmissionStats,
   searchAdmissions,
-  getStudentDetails
+  getStudentDetails,
+  updateStudentAdmission,
+  deleteStudentAdmission
 } from '@/app/actions/admission';
 import { useBranch } from '@/contexts/branch-context';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
-import { Label as UILabel } from '@/components/ui/label';
+import { AdmissionEditForm } from './components/admission-edit-form';
 
 interface Application {
   id: string;
@@ -68,6 +68,60 @@ interface DashboardStats {
   classCounts?: Record<string, number>;
 }
 
+interface StudentDetails {
+  id: string;
+  applicationNo: string;
+  studentName: string;
+  rollNumber: string;
+  class: string;
+  section: string;
+  branch: string;
+  school: string;
+  admissionDate: string;
+  parentName: string;
+  parentEmail: string;
+  parentPhone: string;
+  parentRelation: string;
+  studentEmail: string;
+  studentPhone: string;
+  address: string;
+  dateOfBirth: string;
+  gender: string;
+  bloodGroup?: string;
+  nationality?: string;
+  religion?: string;
+  birthCertificateNo?: string;
+  status: string;
+  student: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    dateOfBirth?: string;
+  };
+  parent: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    relation?: string;
+  };
+}
+
+// Add RELATIONS array for dropdown options
+const RELATIONS = [
+  'Father',
+  'Mother', 
+  'Guardian',
+  'Grandfather',
+  'Grandmother',
+  'Uncle',
+  'Aunt',
+  'Brother',
+  'Sister',
+  'Other'
+];
+
 export default function AdmissionsPage() {
   const { selectedBranch } = useBranch();
   const { toast } = useToast();
@@ -81,7 +135,7 @@ export default function AdmissionsPage() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Application | null>(null);
-  const [studentDetails, setStudentDetails] = useState<unknown>(null);
+  const [studentDetails, setStudentDetails] = useState<StudentDetails | null>(null);
   const [applications, setApplications] = useState<Application[]>([]);
   const [dashboardStats, setDashboardStats] = useState<DashboardStats | null>(null);
   const [classData, setClassData] = useState<any[]>([]);
@@ -241,21 +295,16 @@ export default function AdmissionsPage() {
     setShowViewDialog(true);
 
     try {
-      // TODO: Implement getStudentDetails function
-      // const result = await getStudentDetails(application.id);
-      // if (result.success) {
-      //   setStudentDetails(result.data);
-      // } else {
-      //   toast({
-      //     variant: "destructive",
-      //     title: "Error",
-      //     description: "Failed to load student details"
-      //   });
-      // }
-      toast({
-        title: "Info",
-        description: "Student details feature not yet implemented"
-      });
+      const result = await getStudentDetails(application.id);
+      if (result.success) {
+        setStudentDetails(result.data);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load student details"
+        });
+      }
     } catch (error) {
       console.error('Error loading student details:', error);
       toast({
@@ -274,22 +323,17 @@ export default function AdmissionsPage() {
     setDetailsLoading(true);
 
     try {
-      // TODO: Implement getStudentDetails function
-      // const result = await getStudentDetails(application.id);
-      // if (result.success) {
-      //   setStudentDetails(result.data);
-      //   setShowEditDialog(true);
-      // } else {
-      //   toast({
-      //     variant: "destructive",
-      //     title: "Error",
-      //     description: "Failed to load student data for editing"
-      //   });
-      // }
-      toast({
-        title: "Info",
-        description: "Edit feature not yet implemented"
-      });
+      const result = await getStudentDetails(application.id);
+      if (result.success) {
+        setStudentDetails(result.data);
+        setShowEditDialog(true);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load student data for editing"
+        });
+      }
     } catch (error) {
       console.error('Error loading student data:', error);
       toast({
@@ -311,33 +355,24 @@ export default function AdmissionsPage() {
   // Confirm Delete
   const handleConfirmDelete = async () => {
     if (!selectedStudent) return;
-
     setDeleteLoading(true);
     try {
-      // TODO: Implement deleteStudentAdmission function
-      // const result = await deleteStudentAdmission(selectedStudent.id);
-      
-      // if (result.success) {
-      //   toast({
-      //     title: "Success",
-      //     description: result.message
-      //   });
-      //   setShowDeleteDialog(false);
-      //   setSelectedStudent(null);
-      //   loadDashboardData(); // Refresh data
-      // } else {
-      //   toast({
-      //     variant: "destructive",
-      //     title: "Error",
-      //     description: result.message
-      //   });
-      // }
-      toast({
-        title: "Info",
-        description: "Delete feature not yet implemented"
-      });
-      setShowDeleteDialog(false);
-      setSelectedStudent(null);
+      const result = await deleteStudentAdmission(selectedStudent.id);
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: result.message
+        });
+        setShowDeleteDialog(false);
+        setSelectedStudent(null);
+        loadDashboardData();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: result.message
+        });
+      }
     } catch (error) {
       console.error('Error deleting student:', error);
       toast({
@@ -355,32 +390,24 @@ export default function AdmissionsPage() {
     if (!selectedStudent) return;
 
     try {
-      // TODO: Implement updateStudentAdmission function
-      // const result = await updateStudentAdmission(selectedStudent.id, formData);
+      const result = await updateStudentAdmission(selectedStudent.id, formData);
       
-      // if (result.success) {
-      //   toast({
-      //     title: "Success",
-      //     description: result.message
-      //   });
-      //   setShowEditDialog(false);
-      //   setSelectedStudent(null);
-      //   setStudentDetails(null);
-      //   loadDashboardData(); // Refresh data
-      // } else {
-      //   toast({
-      //     variant: "destructive",
-      //     title: "Error",
-      //     description: result.message
-      //   });
-      // }
-      toast({
-        title: "Info",
-        description: "Update feature not yet implemented"
-      });
-      setShowEditDialog(false);
-      setSelectedStudent(null);
-      setStudentDetails(null);
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: result.message
+        });
+        setShowEditDialog(false);
+        setSelectedStudent(null);
+        setStudentDetails(null);
+        loadDashboardData(); // Refresh data
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: result.message
+        });
+      }
     } catch (error) {
       console.error('Error updating student:', error);
       toast({
@@ -797,9 +824,32 @@ export default function AdmissionsPage() {
                 <span className="ml-2">Loading student details...</span>
               </div>
             ) : studentDetails ? (
-              <div className="text-center py-4 text-muted-foreground">
-                {/* TODO: Implement proper student details display */}
-                Student details feature not yet implemented
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-semibold mb-2">Student Info</h4>
+                  <div><b>Name:</b> {studentDetails.studentName}</div>
+                  <div><b>Email:</b> {studentDetails.studentEmail}</div>
+                  <div><b>Phone:</b> {studentDetails.studentPhone}</div>
+                  <div><b>Roll Number:</b> {studentDetails.rollNumber}</div>
+                  <div><b>Class:</b> {studentDetails.class}</div>
+                  <div><b>Section:</b> {studentDetails.section}</div>
+                  <div><b>Branch:</b> {studentDetails.branch}</div>
+                  <div><b>School:</b> {studentDetails.school}</div>
+                  <div><b>Date of Birth:</b> {studentDetails.dateOfBirth}</div>
+                  <div><b>Gender:</b> {studentDetails.gender}</div>
+                  <div><b>Blood Group:</b> {studentDetails.bloodGroup}</div>
+                  <div><b>Nationality:</b> {studentDetails.nationality}</div>
+                  <div><b>Religion:</b> {studentDetails.religion}</div>
+                  <div><b>Birth Certificate No:</b> {studentDetails.birthCertificateNo}</div>
+                  <div><b>Status:</b> {studentDetails.status}</div>
+                </div>
+                <div>
+                  <h4 className="font-semibold mb-2">Parent Info</h4>
+                  <div><b>Name:</b> {studentDetails.parentName}</div>
+                  <div><b>Email:</b> {studentDetails.parentEmail}</div>
+                  <div><b>Phone:</b> {studentDetails.parentPhone}</div>
+                  <div><b>Relation:</b> {studentDetails.parentRelation}</div>
+                </div>
               </div>
             ) : (
               <div className="text-center py-4 text-muted-foreground">
@@ -811,99 +861,16 @@ export default function AdmissionsPage() {
       </Dialog>
 
       {/* Edit Student Dialog */}
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              Edit Student
-              {selectedStudent && ` - ${selectedStudent.studentName}`}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {detailsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-current"></div>
-                <span className="ml-2">Loading student data...</span>
-              </div>
-            ) : studentDetails ? (
-              <div className="text-center py-4 text-muted-foreground">
-                {/* TODO: Implement proper edit form */}
-                Edit feature not yet implemented
-              </div>
-              // <form action={handleEditSubmit} className="space-y-6">
-              //   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              //     {/* Student Basic Info */}
-              //     <div className="space-y-2">
-              //       <UILabel>First Name *</UILabel>
-              //       <Input 
-              //         name="studentFirstName" 
-              //         defaultValue={studentDetails.student.firstName}
-              //         required 
-              //       />
-              //     </div>
-              //     <div className="space-y-2">
-              //       <UILabel>Last Name *</UILabel>
-              //       <Input 
-              //         name="studentLastName" 
-              //         defaultValue={studentDetails.student.lastName}
-              //         required 
-              //       />
-              //     </div>
-              //     <div className="space-y-2">
-              //       <UILabel>Email *</UILabel>
-              //       <Input 
-              //         name="studentEmail" 
-              //         type="email"
-              //         defaultValue={studentDetails.student.email}
-              //         required 
-              //       />
-              //     </div>
-              //     <div className="space-y-2">
-              //       <UILabel>Phone</UILabel>
-              //       <Input 
-              //         name="studentPhone" 
-              //         defaultValue={studentDetails.student.phone || ''}
-              //       />
-              //     </div>
-              //     <div className="space-y-2">
-              //       <UILabel>Date of Birth</UILabel>
-              //       <Input 
-              //         name="dateOfBirth" 
-              //         type="date"
-              //         defaultValue={studentDetails.student.dateOfBirth ? new Date(studentDetails.student.dateOfBirth).toISOString().split('T')[0] : ''}
-              //       />
-              //     </div>
-              //     <div className="space-y-2">
-              //       <UILabel>Roll Number *</UILabel>
-              //       <Input 
-              //         name="rollNumber" 
-              //         defaultValue={studentDetails.rollNumber}
-              //         required 
-              //       />
-              //     </div>
-              //   </div>
-
-              //   <div className="flex justify-end gap-2">
-              //     <Button 
-              //       type="button" 
-              //       variant="outline" 
-              //       onClick={() => setShowEditDialog(false)}
-              //     >
-              //       Cancel
-              //     </Button>
-              //     <Button type="submit">
-              //       Update Student
-              //     </Button>
-              //   </div>
-              // </form>
-            ) : (
-              <div className="text-center py-4 text-muted-foreground">
-                Failed to load student data
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AdmissionEditForm
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        id={selectedStudent?.id || ''}
+        onSuccess={() => {
+          setShowEditDialog(false);
+          setSelectedStudent(null);
+          loadDashboardData();
+        }}
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
