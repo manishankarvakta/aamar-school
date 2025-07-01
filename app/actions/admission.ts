@@ -1,9 +1,9 @@
-'use server';
+"use server";
 
-import { prisma } from '@/lib/prisma';
-import { requireAuth, getSessionData } from '@/lib/session';
-import { revalidatePath } from 'next/cache';
-import { UserRole, Gender } from '@prisma/client';
+import { prisma } from "@/lib/prisma";
+import { requireAuth, getSessionData } from "@/lib/session";
+import { revalidatePath } from "next/cache";
+import { UserRole, Gender } from "@prisma/client";
 
 // Types based on Prisma schema
 interface StudentAdmissionData {
@@ -19,7 +19,7 @@ interface StudentAdmissionData {
   sectionId: string; // Changed from classId to sectionId as per schema
   admissionDate: string;
   address?: string;
-  
+
   // Parent Information
   parentFirstName: string;
   parentLastName: string;
@@ -28,7 +28,7 @@ interface StudentAdmissionData {
   parentGender: Gender;
   relation: string; // Father, Mother, Guardian
   parentAddress?: string;
-  
+
   // Optional fields
   previousSchool?: string;
   medicalInfo?: string;
@@ -54,119 +54,135 @@ interface AdmissionResult {
  */
 export async function createStudentWithParent(
   prevState: any,
-  formData: FormData
+  formData: FormData,
 ): Promise<AdmissionResult> {
-  console.log('🎓 Starting student admission process...');
-  
+  console.log("🎓 Starting student admission process...");
+
   try {
     // Get session data for multi-tenancy
     const session = await requireAuth();
-    console.log('✅ Session data retrieved:', {
+    console.log("✅ Session data retrieved:", {
       userId: session.userId,
       role: session.role,
       aamarId: session.aamarId,
       schoolId: session.schoolId,
-      branchId: session.branchId
+      branchId: session.branchId,
     });
 
     // Extract and validate section selection
-    const selectedSectionId = formData.get('sectionId') as string;
-    console.log('📝 Selected section ID:', selectedSectionId);
-    
+    const selectedSectionId = formData.get("sectionId") as string;
+    console.log("📝 Selected section ID:", selectedSectionId);
+
     if (!selectedSectionId) {
-      console.log('❌ No section selected');
+      console.log("❌ No section selected");
       return {
         success: false,
-        message: 'Please select a section'
+        message: "Please select a section",
       };
     }
 
     // Fetch the section with its class, branch and school information
-    console.log('🔍 Fetching section details...');
+    console.log("🔍 Fetching section details...");
     const selectedSection = await prisma.section.findUnique({
-      where: { 
+      where: {
         id: selectedSectionId,
-        aamarId: session.aamarId // Multi-tenant filter
+        aamarId: session.aamarId, // Multi-tenant filter
       },
       include: {
         class: {
           include: {
             branch: {
               include: {
-                school: true
-              }
-            }
-          }
-        }
-      }
+                school: true,
+              },
+            },
+          },
+        },
+      },
     });
 
-    console.log('📊 Section details:', selectedSection ? {
-      sectionId: selectedSection.id,
-      sectionName: selectedSection.name,
-      className: selectedSection.class.name,
-      branchName: selectedSection.class.branch.name,
-      schoolName: selectedSection.class.branch.school.name
-    } : 'Not found');
+    console.log(
+      "📊 Section details:",
+      selectedSection
+        ? {
+            sectionId: selectedSection.id,
+            sectionName: selectedSection.name,
+            className: selectedSection.class.name,
+            branchName: selectedSection.class.branch.name,
+            schoolName: selectedSection.class.branch.school.name,
+          }
+        : "Not found",
+    );
 
     if (!selectedSection) {
-      console.log('❌ Selected section not found or not accessible');
+      console.log("❌ Selected section not found or not accessible");
       return {
         success: false,
-        message: 'Selected section not found or not accessible'
+        message: "Selected section not found or not accessible",
       };
     }
 
     // Extract form data
-    console.log('📋 Extracting form data...');
+    console.log("📋 Extracting form data...");
     const data: StudentAdmissionData = {
       // Student data
-      studentFirstName: formData.get('studentFirstName') as string,
-      studentLastName: formData.get('studentLastName') as string,
-      studentEmail: formData.get('studentEmail') as string,
-      studentPhone: formData.get('studentPhone') as string,
-      dateOfBirth: formData.get('dateOfBirth') as string,
-      gender: formData.get('gender') as Gender,
-      bloodGroup: formData.get('bloodGroup') as string,
-      rollNumber: formData.get('rollNumber') as string,
+      studentFirstName: formData.get("studentFirstName") as string,
+      studentLastName: formData.get("studentLastName") as string,
+      studentEmail: formData.get("studentEmail") as string,
+      studentPhone: formData.get("studentPhone") as string,
+      dateOfBirth: formData.get("dateOfBirth") as string,
+      gender: formData.get("gender") as Gender,
+      bloodGroup: formData.get("bloodGroup") as string,
+      rollNumber: formData.get("rollNumber") as string,
       sectionId: selectedSectionId,
-      admissionDate: formData.get('admissionDate') as string,
-      address: formData.get('address') as string,
-      
+      admissionDate: formData.get("admissionDate") as string,
+      address: formData.get("address") as string,
+
       // Parent data
-      parentFirstName: formData.get('parentFirstName') as string,
-      parentLastName: formData.get('parentLastName') as string,
-      parentEmail: formData.get('parentEmail') as string,
-      parentPhone: formData.get('parentPhone') as string,
-      parentGender: formData.get('parentGender') as Gender,
-      relation: formData.get('relation') as string,
-      parentAddress: formData.get('parentAddress') as string || formData.get('address') as string,
-      
+      parentFirstName: formData.get("parentFirstName") as string,
+      parentLastName: formData.get("parentLastName") as string,
+      parentEmail: formData.get("parentEmail") as string,
+      parentPhone: formData.get("parentPhone") as string,
+      parentGender: formData.get("parentGender") as Gender,
+      relation: formData.get("relation") as string,
+      parentAddress:
+        (formData.get("parentAddress") as string) ||
+        (formData.get("address") as string),
+
       // Optional fields
-      previousSchool: formData.get('previousSchool') as string,
-      medicalInfo: formData.get('medicalInfo') as string,
-      emergencyContact: formData.get('emergencyContact') as string,
-      nationality: formData.get('nationality') as string || 'Bangladeshi',
-      religion: formData.get('religion') as string || 'Islam',
-      birthCertificateNo: formData.get('birthCertificateNo') as string,
+      previousSchool: formData.get("previousSchool") as string,
+      medicalInfo: formData.get("medicalInfo") as string,
+      emergencyContact: formData.get("emergencyContact") as string,
+      nationality: (formData.get("nationality") as string) || "Bangladeshi",
+      religion: (formData.get("religion") as string) || "Islam",
+      birthCertificateNo: formData.get("birthCertificateNo") as string,
     };
 
-    console.log('📝 Extracted form data:', {
+    console.log("📝 Extracted form data:", {
       studentName: `${data.studentFirstName} ${data.studentLastName}`,
       studentEmail: data.studentEmail,
       parentName: `${data.parentFirstName} ${data.parentLastName}`,
       parentEmail: data.parentEmail,
       rollNumber: data.rollNumber,
       gender: data.gender,
-      relation: data.relation
+      relation: data.relation,
     });
 
     // Validate required fields
-    console.log('✅ Validating required fields...');
+    console.log("✅ Validating required fields...");
     const requiredFields = [
-      'studentFirstName', 'studentLastName', 'studentEmail', 'dateOfBirth', 
-      'gender', 'rollNumber', 'sectionId', 'admissionDate',
-      'parentFirstName', 'parentLastName', 'parentEmail', 'relation'
+      "studentFirstName",
+      "studentLastName",
+      "studentEmail",
+      "dateOfBirth",
+      "gender",
+      "rollNumber",
+      "sectionId",
+      "admissionDate",
+      "parentFirstName",
+      "parentLastName",
+      "parentEmail",
+      "relation",
     ];
 
     for (const field of requiredFields) {
@@ -174,99 +190,99 @@ export async function createStudentWithParent(
         console.log(`❌ Missing required field: ${field}`);
         return {
           success: false,
-          message: `${field.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())} is required`
+          message: `${field.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase())} is required`,
         };
       }
     }
-    console.log('✅ All required fields validated');
+    console.log("✅ All required fields validated");
 
     // Validate email formats
-    console.log('📧 Validating email formats...');
+    console.log("📧 Validating email formats...");
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(data.studentEmail)) {
-      console.log('❌ Invalid student email format:', data.studentEmail);
+      console.log("❌ Invalid student email format:", data.studentEmail);
       return {
         success: false,
-        message: 'Invalid student email format'
+        message: "Invalid student email format",
       };
     }
-    
+
     if (!emailRegex.test(data.parentEmail)) {
-      console.log('❌ Invalid parent email format:', data.parentEmail);
+      console.log("❌ Invalid parent email format:", data.parentEmail);
       return {
         success: false,
-        message: 'Invalid parent email format'
+        message: "Invalid parent email format",
       };
     }
-    console.log('✅ Email formats validated');
+    console.log("✅ Email formats validated");
 
     // Check if emails already exist (within the same organization)
-    console.log('🔍 Checking for existing emails...');
+    console.log("🔍 Checking for existing emails...");
     const existingUserByStudentEmail = await prisma.user.findFirst({
-      where: { 
+      where: {
         email: data.studentEmail,
-        aamarId: session.aamarId
-      }
+        aamarId: session.aamarId,
+      },
     });
 
     if (existingUserByStudentEmail) {
-      console.log('❌ Student email already exists:', data.studentEmail);
+      console.log("❌ Student email already exists:", data.studentEmail);
       return {
         success: false,
-        message: 'Student email already exists in this organization'
+        message: "Student email already exists in this organization",
       };
     }
 
     const existingUserByParentEmail = await prisma.user.findFirst({
-      where: { 
+      where: {
         email: data.parentEmail,
-        aamarId: session.aamarId
-      }
+        aamarId: session.aamarId,
+      },
     });
 
     if (existingUserByParentEmail) {
-      console.log('❌ Parent email already exists:', data.parentEmail);
+      console.log("❌ Parent email already exists:", data.parentEmail);
       return {
         success: false,
-        message: 'Parent email already exists in this organization'
+        message: "Parent email already exists in this organization",
       };
     }
-    console.log('✅ Email uniqueness validated');
+    console.log("✅ Email uniqueness validated");
 
     // Check if roll number already exists in the section
-    console.log('🔍 Checking roll number uniqueness...');
+    console.log("🔍 Checking roll number uniqueness...");
     const existingStudent = await prisma.student.findFirst({
       where: {
         rollNumber: data.rollNumber,
         sectionId: data.sectionId,
-        aamarId: session.aamarId
-      }
+        aamarId: session.aamarId,
+      },
     });
 
     if (existingStudent) {
-      console.log('❌ Roll number already exists:', data.rollNumber);
+      console.log("❌ Roll number already exists:", data.rollNumber);
       return {
         success: false,
-        message: 'Roll number already exists in this section'
+        message: "Roll number already exists in this section",
       };
     }
-    console.log('✅ Roll number uniqueness validated');
+    console.log("✅ Roll number uniqueness validated");
 
     // Generate application number
     const applicationNo = `ADM-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
-    console.log('📄 Generated application number:', applicationNo);
+    console.log("📄 Generated application number:", applicationNo);
 
     // Start database transaction
-    console.log('💾 Starting database transaction...');
+    console.log("💾 Starting database transaction...");
     const result = await prisma.$transaction(async (tx) => {
-      console.log('👤 Creating parent user...');
-      
+      console.log("👤 Creating parent user...");
+
       // Create Parent User
       const parentUser = await tx.user.create({
         data: {
           aamarId: session.aamarId,
           email: data.parentEmail,
-          password: 'parent123', // Default password - should be changed on first login
+          password: "parent123", // Default password - should be changed on first login
           firstName: data.parentFirstName,
           lastName: data.parentLastName,
           role: UserRole.PARENT,
@@ -293,21 +309,21 @@ export async function createStudentWithParent(
         include: { parent: true },
       });
 
-      console.log('✅ Parent user created:', {
+      console.log("✅ Parent user created:", {
         userId: parentUser.id,
         parentId: parentUser.parent?.id,
         email: parentUser.email,
-        name: `${parentUser.firstName} ${parentUser.lastName}`
+        name: `${parentUser.firstName} ${parentUser.lastName}`,
       });
 
-      console.log('👨‍🎓 Creating student user...');
-      
+      console.log("👨‍🎓 Creating student user...");
+
       // Create Student User
       const studentUser = await tx.user.create({
         data: {
           aamarId: session.aamarId,
           email: data.studentEmail,
-          password: 'student123', // Default password - should be changed on first login
+          password: "student123", // Default password - should be changed on first login
           firstName: data.studentFirstName,
           lastName: data.studentLastName,
           role: UserRole.STUDENT,
@@ -333,6 +349,7 @@ export async function createStudentWithParent(
               rollNumber: data.rollNumber,
               admissionDate: new Date(data.admissionDate),
               sectionId: data.sectionId,
+              classId: selectedSection.class.id,
               parentId: parentUser.parent!.id,
             },
           },
@@ -340,32 +357,32 @@ export async function createStudentWithParent(
         include: { student: true },
       });
 
-      console.log('✅ Student user created:', {
+      console.log("✅ Student user created:", {
         userId: studentUser.id,
         studentId: studentUser.student?.id,
         email: studentUser.email,
         name: `${studentUser.firstName} ${studentUser.lastName}`,
-        rollNumber: studentUser.student?.rollNumber
+        rollNumber: studentUser.student?.rollNumber,
       });
 
       return {
         parentUser,
         studentUser,
-        applicationNo
+        applicationNo,
       };
     });
 
-    console.log('🎉 Transaction completed successfully!');
-    console.log('📊 Final result:', {
+    console.log("🎉 Transaction completed successfully!");
+    console.log("📊 Final result:", {
       studentId: result.studentUser.student?.id,
       parentId: result.parentUser.parent?.id,
-      applicationNo: result.applicationNo
+      applicationNo: result.applicationNo,
     });
 
     // Revalidate relevant paths
-    revalidatePath('/dashboard/admissions');
-    revalidatePath('/dashboard/students');
-    revalidatePath('/dashboard/parents');
+    revalidatePath("/dashboard/admissions");
+    revalidatePath("/dashboard/students");
+    revalidatePath("/dashboard/parents");
 
     return {
       success: true,
@@ -373,15 +390,17 @@ export async function createStudentWithParent(
       data: {
         studentId: result.studentUser.student!.id,
         parentId: result.parentUser.parent!.id,
-        applicationNo: result.applicationNo
-      }
+        applicationNo: result.applicationNo,
+      },
     };
-
   } catch (error) {
-    console.error('❌ Error in student admission:', error);
+    console.error("❌ Error in student admission:", error);
     return {
       success: false,
-      message: error instanceof Error ? error.message : 'Failed to create student admission'
+      message:
+        error instanceof Error
+          ? error.message
+          : "Failed to create student admission",
     };
   }
 }
@@ -390,36 +409,36 @@ export async function createStudentWithParent(
  * Get all classes for the current organization
  */
 export async function getClasses() {
-  console.log('📚 Getting classes...');
-  
+  console.log("📚 Getting classes...");
+
   try {
     const session = await requireAuth();
-    console.log('✅ Session data for classes:', {
+    console.log("✅ Session data for classes:", {
       aamarId: session.aamarId,
-      role: session.role
+      role: session.role,
     });
 
     const classes = await prisma.class.findMany({
       where: {
-        aamarId: session.aamarId
+        aamarId: session.aamarId,
       },
       include: {
         branch: {
           select: {
             id: true,
             name: true,
-            code: true
-          }
+            code: true,
+          },
         },
         teacher: {
           include: {
             user: {
               select: {
                 firstName: true,
-                lastName: true
-              }
-            }
-          }
+                lastName: true,
+              },
+            },
+          },
         },
         sections: {
           select: {
@@ -429,38 +448,37 @@ export async function getClasses() {
             capacity: true,
             _count: {
               select: {
-                students: true
-              }
-            }
-          }
+                students: true,
+              },
+            },
+          },
         },
         _count: {
           select: {
-            sections: true
-          }
-        }
+            sections: true,
+          },
+        },
       },
-      orderBy: [
-        { branch: { name: 'asc' } },
-        { name: 'asc' }
-      ]
+      orderBy: [{ branch: { name: "asc" } }, { name: "asc" }],
     });
 
-    console.log('📊 Classes retrieved:', {
+    console.log("📊 Classes retrieved:", {
       count: classes.length,
-      classes: classes.map(c => ({
+      classes: classes.map((c) => ({
         id: c.id,
         name: c.name,
         branch: c.branch.name,
         sectionsCount: c._count.sections,
-        teacher: c.teacher ? `${c.teacher.user.firstName} ${c.teacher.user.lastName}` : 'Not assigned'
-      }))
+        teacher: c.teacher
+          ? `${c.teacher.user.firstName} ${c.teacher.user.lastName}`
+          : "Not assigned",
+      })),
     });
 
     return classes;
   } catch (error) {
-    console.error('❌ Error getting classes:', error);
-    throw new Error('Failed to fetch classes');
+    console.error("❌ Error getting classes:", error);
+    throw new Error("Failed to fetch classes");
   }
 }
 
@@ -468,19 +486,19 @@ export async function getClasses() {
  * Get sections by class ID
  */
 export async function getSectionsByClass(classId: string) {
-  console.log('📝 Getting sections for class:', classId);
-  
+  console.log("📝 Getting sections for class:", classId);
+
   try {
     const session = await requireAuth();
-    console.log('✅ Session data for sections:', {
+    console.log("✅ Session data for sections:", {
       aamarId: session.aamarId,
-      classId
+      classId,
     });
 
     const sections = await prisma.section.findMany({
       where: {
         classId,
-        aamarId: session.aamarId
+        aamarId: session.aamarId,
       },
       include: {
         class: {
@@ -489,39 +507,39 @@ export async function getSectionsByClass(classId: string) {
             name: true,
             branch: {
               select: {
-                name: true
-              }
-            }
-          }
+                name: true,
+              },
+            },
+          },
         },
         _count: {
           select: {
-            students: true
-          }
-        }
+            students: true,
+          },
+        },
       },
       orderBy: {
-        name: 'asc'
-      }
+        name: "asc",
+      },
     });
 
-    console.log('📊 Sections retrieved:', {
+    console.log("📊 Sections retrieved:", {
       classId,
       count: sections.length,
-      sections: sections.map(s => ({
+      sections: sections.map((s) => ({
         id: s.id,
         name: s.name,
         displayName: s.displayName,
         capacity: s.capacity,
         currentStudents: s._count.students,
-        available: s.capacity - s._count.students
-      }))
+        available: s.capacity - s._count.students,
+      })),
     });
 
     return sections;
   } catch (error) {
-    console.error('❌ Error getting sections:', error);
-    throw new Error('Failed to fetch sections');
+    console.error("❌ Error getting sections:", error);
+    throw new Error("Failed to fetch sections");
   }
 }
 
@@ -529,55 +547,58 @@ export async function getSectionsByClass(classId: string) {
  * Get all sections for admission form
  */
 export async function getAllSections() {
-  console.log('📝 Getting all sections...');
-  
+  console.log("📝 Getting all sections...");
+
   try {
     const session = await requireAuth();
-    console.log('✅ Session data for all sections:', {
-      aamarId: session.aamarId
+    console.log("✅ Session data for all sections:", {
+      aamarId: session.aamarId,
     });
 
     const sections = await prisma.section.findMany({
       where: {
-        aamarId: session.aamarId
+        aamarId: session.aamarId,
       },
       include: {
         class: {
           include: {
             branch: {
               select: {
-                name: true
-              }
-            }
-          }
+                name: true,
+              },
+            },
+          },
         },
         _count: {
           select: {
-            students: true
-          }
-        }
+            students: true,
+          },
+        },
       },
       orderBy: [
-        { class: { branch: { name: 'asc' } } },
-        { class: { name: 'asc' } },
-        { name: 'asc' }
-      ]
+        { class: { branch: { name: "asc" } } },
+        { class: { name: "asc" } },
+        { name: "asc" },
+      ],
     });
 
-    console.log('📊 All sections retrieved:', {
+    console.log("📊 All sections retrieved:", {
       count: sections.length,
-      byBranch: sections.reduce((acc, section) => {
-        const branchName = section.class.branch.name;
-        if (!acc[branchName]) acc[branchName] = 0;
-        acc[branchName]++;
-        return acc;
-      }, {} as Record<string, number>)
+      byBranch: sections.reduce(
+        (acc, section) => {
+          const branchName = section.class.branch.name;
+          if (!acc[branchName]) acc[branchName] = 0;
+          acc[branchName]++;
+          return acc;
+        },
+        {} as Record<string, number>,
+      ),
     });
 
     return sections;
   } catch (error) {
-    console.error('❌ Error getting all sections:', error);
-    throw new Error('Failed to fetch sections');
+    console.error("❌ Error getting all sections:", error);
+    throw new Error("Failed to fetch sections");
   }
 }
 
@@ -585,50 +606,50 @@ export async function getAllSections() {
  * Generate next available roll number for a section
  */
 export async function generateRollNumber(sectionId: string): Promise<string> {
-  console.log('🔢 Generating roll number for section:', sectionId);
-  
+  console.log("🔢 Generating roll number for section:", sectionId);
+
   try {
     const session = await requireAuth();
-    console.log('✅ Session data for roll number generation:', {
+    console.log("✅ Session data for roll number generation:", {
       aamarId: session.aamarId,
-      sectionId
+      sectionId,
     });
 
     // Get section details
     const section = await prisma.section.findUnique({
       where: {
         id: sectionId,
-        aamarId: session.aamarId
+        aamarId: session.aamarId,
       },
       include: {
         class: {
           select: {
-            name: true
-          }
-        }
-      }
+            name: true,
+          },
+        },
+      },
     });
 
     if (!section) {
-      console.log('❌ Section not found:', sectionId);
-      throw new Error('Section not found');
+      console.log("❌ Section not found:", sectionId);
+      throw new Error("Section not found");
     }
 
     // Get the highest roll number in this section
     const lastStudent = await prisma.student.findFirst({
       where: {
         sectionId,
-        aamarId: session.aamarId
+        aamarId: session.aamarId,
       },
       orderBy: {
-        rollNumber: 'desc'
+        rollNumber: "desc",
       },
       select: {
-        rollNumber: true
-      }
+        rollNumber: true,
+      },
     });
 
-    console.log('📊 Last student roll number:', lastStudent?.rollNumber);
+    console.log("📊 Last student roll number:", lastStudent?.rollNumber);
 
     // Generate new roll number
     let nextNumber = 1;
@@ -641,19 +662,19 @@ export async function generateRollNumber(sectionId: string): Promise<string> {
     }
 
     const currentYear = new Date().getFullYear();
-    const rollNumber = `${currentYear}${String(nextNumber).padStart(3, '0')}`;
+    const rollNumber = `${currentYear}${String(nextNumber).padStart(3, "0")}`;
 
-    console.log('✅ Generated roll number:', {
+    console.log("✅ Generated roll number:", {
       sectionId,
       sectionName: `${section.class.name} ${section.name}`,
       rollNumber,
-      nextNumber
+      nextNumber,
     });
 
     return rollNumber;
   } catch (error) {
-    console.error('❌ Error generating roll number:', error);
-    throw new Error('Failed to generate roll number');
+    console.error("❌ Error generating roll number:", error);
+    throw new Error("Failed to generate roll number");
   }
 }
 
@@ -661,17 +682,17 @@ export async function generateRollNumber(sectionId: string): Promise<string> {
  * Get admission applications/students
  */
 export async function getAdmissionApplications() {
-  console.log('📋 Getting admission applications...');
-  
+  console.log("📋 Getting admission applications...");
+
   try {
     const session = await requireAuth();
-    console.log('✅ Session data for applications:', {
-      aamarId: session.aamarId
+    console.log("✅ Session data for applications:", {
+      aamarId: session.aamarId,
     });
 
     const students = await prisma.student.findMany({
       where: {
-        aamarId: session.aamarId
+        aamarId: session.aamarId,
       },
       include: {
         user: {
@@ -685,12 +706,12 @@ export async function getAdmissionApplications() {
               include: {
                 branch: {
                   select: {
-                    name: true
-                  }
-                }
-              }
-            }
-          }
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
         },
         parent: {
           include: {
@@ -703,21 +724,21 @@ export async function getAdmissionApplications() {
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: "desc",
       },
     });
 
-    console.log('📊 Applications retrieved:', {
+    console.log("📊 Applications retrieved:", {
       count: students.length,
-      recentApplications: students.slice(0, 3).map(s => ({
+      recentApplications: students.slice(0, 3).map((s) => ({
         name: `${s.user.firstName} ${s.user.lastName}`,
         rollNumber: s.rollNumber,
         section: `${s.section.class.name} ${s.section.name}`,
-        admissionDate: s.admissionDate
-      }))
+        admissionDate: s.admissionDate,
+      })),
     });
 
-    return students.map(student => ({
+    return students.map((student) => ({
       id: student.id,
       applicationNo: `ADM-${student.rollNumber}`,
       studentName: `${student.user.firstName} ${student.user.lastName}`,
@@ -726,19 +747,21 @@ export async function getAdmissionApplications() {
       section: student.section.name,
       branch: student.section.class.branch.name,
       admissionDate: student.admissionDate,
-      parentName: student.parent ? `${student.parent.user.firstName} ${student.parent.user.lastName}` : 'N/A',
-      parentEmail: student.parent?.user.email || 'N/A',
-      parentPhone: student.parent?.user.profile?.phone || 'N/A',
+      parentName: student.parent
+        ? `${student.parent.user.firstName} ${student.parent.user.lastName}`
+        : "N/A",
+      parentEmail: student.parent?.user.email || "N/A",
+      parentPhone: student.parent?.user.profile?.phone || "N/A",
       studentEmail: student.user.email,
-      studentPhone: student.user.profile?.phone || 'N/A',
-      address: student.user.profile?.address || 'N/A',
-      status: 'Approved', // Since they're already admitted
+      studentPhone: student.user.profile?.phone || "N/A",
+      address: student.user.profile?.address || "N/A",
+      status: "Approved", // Since they're already admitted
       dateOfBirth: student.user.profile?.dateOfBirth,
       gender: student.user.profile?.gender,
     }));
   } catch (error) {
-    console.error('❌ Error getting admission applications:', error);
-    throw new Error('Failed to fetch admission applications');
+    console.error("❌ Error getting admission applications:", error);
+    throw new Error("Failed to fetch admission applications");
   }
 }
 
@@ -746,12 +769,12 @@ export async function getAdmissionApplications() {
  * Get admission statistics
  */
 export async function getAdmissionStats() {
-  console.log('📊 Getting admission statistics...');
-  
+  console.log("📊 Getting admission statistics...");
+
   try {
     const session = await requireAuth();
-    console.log('✅ Session data for stats:', {
-      aamarId: session.aamarId
+    console.log("✅ Session data for stats:", {
+      aamarId: session.aamarId,
     });
 
     // Get all students for the organization
@@ -777,48 +800,59 @@ export async function getAdmissionStats() {
       },
     });
 
-    console.log('📈 Students data for stats:', {
-      totalStudents: students.length
+    console.log("📈 Students data for stats:", {
+      totalStudents: students.length,
     });
 
     // Calculate statistics
     const totalStudents = students.length;
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
-    
-    const thisMonthAdmissions = students.filter(student => {
+
+    const thisMonthAdmissions = students.filter((student) => {
       const admissionDate = new Date(student.admissionDate);
-      return admissionDate.getMonth() === currentMonth && 
-             admissionDate.getFullYear() === currentYear;
+      return (
+        admissionDate.getMonth() === currentMonth &&
+        admissionDate.getFullYear() === currentYear
+      );
     }).length;
 
     // Group by class
-    const classCounts = students.reduce((acc: Record<string, number>, student) => {
-      const className = `${student.section.class.name} ${student.section.name}`;
-      acc[className] = (acc[className] || 0) + 1;
-      return acc;
-    }, {});
+    const classCounts = students.reduce(
+      (acc: Record<string, number>, student) => {
+        const className = `${student.section.class.name} ${student.section.name}`;
+        acc[className] = (acc[className] || 0) + 1;
+        return acc;
+      },
+      {},
+    );
 
     // Group by branch
-    const branchCounts = students.reduce((acc: Record<string, number>, student) => {
-      const branchName = student.section.class.branch.name;
-      acc[branchName] = (acc[branchName] || 0) + 1;
-      return acc;
-    }, {});
+    const branchCounts = students.reduce(
+      (acc: Record<string, number>, student) => {
+        const branchName = student.section.class.branch.name;
+        acc[branchName] = (acc[branchName] || 0) + 1;
+        return acc;
+      },
+      {},
+    );
 
     // Group by gender
-    const genderCounts = students.reduce((acc: Record<string, number>, student) => {
-      const gender = student.user.profile?.gender || 'Not specified';
-      acc[gender] = (acc[gender] || 0) + 1;
-      return acc;
-    }, {});
+    const genderCounts = students.reduce(
+      (acc: Record<string, number>, student) => {
+        const gender = student.user.profile?.gender || "Not specified";
+        acc[gender] = (acc[gender] || 0) + 1;
+        return acc;
+      },
+      {},
+    );
 
     // Recent admissions (last 30 days)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const recentAdmissions = students.filter(student => 
-      new Date(student.admissionDate) >= thirtyDaysAgo
+
+    const recentAdmissions = students.filter(
+      (student) => new Date(student.admissionDate) >= thirtyDaysAgo,
     ).length;
 
     const stats = {
@@ -831,17 +865,17 @@ export async function getAdmissionStats() {
       genderCounts,
     };
 
-    console.log('📊 Statistics calculated:', stats);
+    console.log("📊 Statistics calculated:", stats);
 
     return {
       success: true,
-      data: stats
+      data: stats,
     };
   } catch (error) {
-    console.error('❌ Error getting admission stats:', error);
+    console.error("❌ Error getting admission stats:", error);
     return {
       success: false,
-      message: 'Failed to fetch admission statistics'
+      message: "Failed to fetch admission statistics",
     };
   }
 }
@@ -850,17 +884,17 @@ export async function getAdmissionStats() {
  * Search admission applications
  */
 export async function searchAdmissions(query: string) {
-  console.log('🔍 Searching admissions with query:', query);
-  
+  console.log("🔍 Searching admissions with query:", query);
+
   try {
     const session = await requireAuth();
-    console.log('✅ Session data for search:', {
+    console.log("✅ Session data for search:", {
       aamarId: session.aamarId,
-      query
+      query,
     });
 
     if (!query || query.trim().length < 2) {
-      console.log('❌ Query too short:', query);
+      console.log("❌ Query too short:", query);
       return [];
     }
 
@@ -874,33 +908,33 @@ export async function searchAdmissions(query: string) {
             user: {
               firstName: {
                 contains: searchTerm,
-                mode: 'insensitive'
-              }
-            }
+                mode: "insensitive",
+              },
+            },
           },
           {
             user: {
               lastName: {
                 contains: searchTerm,
-                mode: 'insensitive'
-              }
-            }
+                mode: "insensitive",
+              },
+            },
           },
           {
             user: {
               email: {
                 contains: searchTerm,
-                mode: 'insensitive'
-              }
-            }
+                mode: "insensitive",
+              },
+            },
           },
           {
             rollNumber: {
               contains: searchTerm,
-              mode: 'insensitive'
-            }
-          }
-        ]
+              mode: "insensitive",
+            },
+          },
+        ],
       },
       include: {
         user: {
@@ -914,12 +948,12 @@ export async function searchAdmissions(query: string) {
               include: {
                 branch: {
                   select: {
-                    name: true
-                  }
-                }
-              }
-            }
-          }
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
         },
         parent: {
           include: {
@@ -932,22 +966,22 @@ export async function searchAdmissions(query: string) {
         },
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: "desc",
       },
-      take: 20 // Limit results
+      take: 20, // Limit results
     });
 
-    console.log('📊 Search results:', {
+    console.log("📊 Search results:", {
       query: searchTerm,
       count: students.length,
-      results: students.slice(0, 3).map(s => ({
+      results: students.slice(0, 3).map((s) => ({
         name: `${s.user.firstName} ${s.user.lastName}`,
         rollNumber: s.rollNumber,
-        email: s.user.email
-      }))
+        email: s.user.email,
+      })),
     });
 
-    return students.map(student => ({
+    return students.map((student) => ({
       id: student.id,
       applicationNo: `ADM-${student.rollNumber}`,
       studentName: `${student.user.firstName} ${student.user.lastName}`,
@@ -956,14 +990,16 @@ export async function searchAdmissions(query: string) {
       section: student.section.name,
       branch: student.section.class.branch.name,
       admissionDate: student.admissionDate,
-      parentName: student.parent ? `${student.parent.user.firstName} ${student.parent.user.lastName}` : 'N/A',
-      parentEmail: student.parent?.user.email || 'N/A',
+      parentName: student.parent
+        ? `${student.parent.user.firstName} ${student.parent.user.lastName}`
+        : "N/A",
+      parentEmail: student.parent?.user.email || "N/A",
       studentEmail: student.user.email,
-      status: 'Approved',
+      status: "Approved",
     }));
   } catch (error) {
-    console.error('❌ Error searching admissions:', error);
-    throw new Error('Failed to search admissions');
+    console.error("❌ Error searching admissions:", error);
+    throw new Error("Failed to search admissions");
   }
 }
 
@@ -971,19 +1007,19 @@ export async function searchAdmissions(query: string) {
  * Get student details by ID
  */
 export async function getStudentDetails(studentId: string) {
-  console.log('👨‍🎓 Getting student details for ID:', studentId);
-  
+  console.log("👨‍🎓 Getting student details for ID:", studentId);
+
   try {
     const session = await requireAuth();
-    console.log('✅ Session data for student details:', {
+    console.log("✅ Session data for student details:", {
       aamarId: session.aamarId,
-      studentId
+      studentId,
     });
 
     const student = await prisma.student.findUnique({
       where: {
         id: studentId,
-        aamarId: session.aamarId
+        aamarId: session.aamarId,
       },
       include: {
         user: {
@@ -997,12 +1033,12 @@ export async function getStudentDetails(studentId: string) {
               include: {
                 branch: {
                   include: {
-                    school: true
-                  }
-                }
-              }
-            }
-          }
+                    school: true,
+                  },
+                },
+              },
+            },
+          },
         },
         parent: {
           include: {
@@ -1017,45 +1053,232 @@ export async function getStudentDetails(studentId: string) {
     });
 
     if (!student) {
-      console.log('❌ Student not found:', studentId);
-      throw new Error('Student not found');
+      console.log("❌ Student not found:", studentId);
+      throw new Error("Student not found");
     }
 
-    console.log('📊 Student details retrieved:', {
+    console.log("📊 Student details retrieved:", {
       studentId: student.id,
       name: `${student.user.firstName} ${student.user.lastName}`,
       rollNumber: student.rollNumber,
       section: `${student.section.class.name} ${student.section.name}`,
-      branch: student.section.class.branch.name
+      branch: student.section.class.branch.name,
     });
 
     return {
-      id: student.id,
-      applicationNo: `ADM-${student.rollNumber}`,
-      studentName: `${student.user.firstName} ${student.user.lastName}`,
-      rollNumber: student.rollNumber,
-      class: student.section.class.name,
-      section: student.section.name,
-      branch: student.section.class.branch.name,
-      school: student.section.class.branch.school.name,
-      admissionDate: student.admissionDate,
-      parentName: student.parent ? `${student.parent.user.firstName} ${student.parent.user.lastName}` : 'N/A',
-      parentEmail: student.parent?.user.email || 'N/A',
-      parentPhone: student.parent?.user.profile?.phone || 'N/A',
-      parentRelation: student.parent?.relation || 'N/A',
-      studentEmail: student.user.email,
-      studentPhone: student.user.profile?.phone || 'N/A',
-      address: student.user.profile?.address || 'N/A',
-      dateOfBirth: student.user.profile?.dateOfBirth,
-      gender: student.user.profile?.gender,
-      bloodGroup: student.user.profile?.bloodGroup,
-      nationality: student.user.profile?.nationality,
-      religion: student.user.profile?.religion,
-      birthCertificateNo: student.user.profile?.birthCertificateNo,
-      status: 'Active',
+      success: true,
+      data: {
+        id: student.id,
+        applicationNo: `ADM-${student.rollNumber}`,
+        studentName: `${student.user.firstName} ${student.user.lastName}`,
+        rollNumber: student.rollNumber || "",
+        class: student.section.class.name || "",
+        section: student.section.name || "",
+        branch: student.section.class.branch.name || "",
+        school: student.section.class.branch.school.name || "",
+        admissionDate: student.admissionDate instanceof Date ? student.admissionDate.toISOString() : (student.admissionDate || ""),
+        parentName: student.parent
+          ? `${student.parent.user.firstName} ${student.parent.user.lastName}`
+          : "",
+        parentEmail: student.parent?.user.email || "",
+        parentPhone: student.parent?.user.profile?.phone || "",
+        parentRelation: student.parent?.relation || "",
+        studentEmail: student.user.email || "",
+        studentPhone: student.user.profile?.phone || "",
+        address: student.user.profile?.address || "",
+        dateOfBirth: student.user.profile?.dateOfBirth instanceof Date ? student.user.profile.dateOfBirth.toISOString() : (student.user.profile?.dateOfBirth || ""),
+        gender: student.user.profile?.gender || "",
+        bloodGroup: student.user.profile?.bloodGroup || "",
+        nationality: student.user.profile?.nationality || "",
+        religion: student.user.profile?.religion || "",
+        birthCertificateNo: student.user.profile?.birthCertificateNo || "",
+        status: "Active",
+        student: {
+          firstName: student.user.firstName || "",
+          lastName: student.user.lastName || "",
+          email: student.user.email || "",
+          phone: student.user.profile?.phone || "",
+          dateOfBirth: student.user.profile?.dateOfBirth instanceof Date ? student.user.profile.dateOfBirth.toISOString() : (student.user.profile?.dateOfBirth || ""),
+        },
+        parent: {
+          firstName: student.parent?.user.firstName || "",
+          lastName: student.parent?.user.lastName || "",
+          email: student.parent?.user.email || "",
+          phone: student.parent?.user.profile?.phone || "",
+          relation: student.parent?.relation || "",
+        },
+      },
     };
   } catch (error) {
-    console.error('❌ Error getting student details:', error);
-    throw new Error('Failed to fetch student details');
+    console.error("❌ Error getting student details:", error);
+    throw new Error("Failed to fetch student details");
   }
-} 
+}
+
+/**
+ * Update student admission (student and parent info)
+ */
+export async function updateStudentAdmission(studentId: string, formData: FormData): Promise<AdmissionResult> {
+  console.log("✏️ Updating student admission for ID:", studentId);
+  try {
+    const session = await requireAuth();
+    // Fetch the student with all relations
+    const student = await prisma.student.findUnique({
+      where: { id: studentId, aamarId: session.aamarId },
+      include: {
+        user: { include: { profile: true } },
+        parent: {
+          include: {
+            user: { include: { profile: true } },
+          },
+        },
+      },
+    });
+    if (!student) {
+      return { success: false, message: "Student not found" };
+    }
+    // Extract fields from formData
+    const studentFirstName = formData.get("studentFirstName") as string;
+    const studentLastName = formData.get("studentLastName") as string;
+    const studentEmail = formData.get("studentEmail") as string;
+    const studentPhone = formData.get("studentPhone") as string;
+    const dateOfBirth = formData.get("dateOfBirth") as string;
+    const rollNumber = formData.get("rollNumber") as string;
+    // Parent fields
+    const parentFirstName = formData.get("parentFirstName") as string;
+    const parentLastName = formData.get("parentLastName") as string;
+    const parentEmail = formData.get("parentEmail") as string;
+    const parentPhone = formData.get("parentPhone") as string;
+    const parentRelation = formData.get("parentRelation") as string;
+    // Validate email uniqueness (excluding current student)
+    if (studentEmail && studentEmail !== student.user.email) {
+      const existing = await prisma.user.findFirst({
+        where: {
+          email: studentEmail,
+          aamarId: session.aamarId,
+          id: { not: student.userId },
+        },
+      });
+      if (existing) {
+        return { success: false, message: "Student email already exists in this organization" };
+      }
+    }
+    // Validate roll number uniqueness (excluding current student)
+    if (rollNumber && rollNumber !== student.rollNumber) {
+      const existingRoll = await prisma.student.findFirst({
+        where: {
+          rollNumber,
+          sectionId: student.sectionId,
+          aamarId: session.aamarId,
+          id: { not: student.id },
+        },
+      });
+      if (existingRoll) {
+        return { success: false, message: "Roll number already exists in this section" };
+      }
+    }
+    // Validate parent email uniqueness (excluding current parent user)
+    if (parentEmail && parentEmail !== student.parent?.user.email) {
+      const existingParent = await prisma.user.findFirst({
+        where: {
+          email: parentEmail,
+          aamarId: session.aamarId,
+          id: { not: student.parent?.userId },
+        },
+      });
+      if (existingParent) {
+        return { success: false, message: "Parent email already exists in this organization" };
+      }
+    }
+    // Update student and user
+    await prisma.user.update({
+      where: { id: student.userId },
+      data: {
+        firstName: studentFirstName || student.user.firstName,
+        lastName: studentLastName || student.user.lastName,
+        email: studentEmail || student.user.email,
+        profile: {
+          update: {
+            phone: studentPhone || student.user.profile?.phone,
+            dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : student.user.profile?.dateOfBirth,
+          },
+        },
+      },
+    });
+    await prisma.student.update({
+      where: { id: student.id },
+      data: {
+        rollNumber: rollNumber || student.rollNumber,
+      },
+    });
+    // Update parent user and profile if parent exists
+    if (student.parent) {
+      await prisma.user.update({
+        where: { id: student.parent.userId },
+        data: {
+          firstName: parentFirstName || student.parent.user.firstName,
+          lastName: parentLastName || student.parent.user.lastName,
+          email: parentEmail || student.parent.user.email,
+          profile: {
+            update: {
+              phone: parentPhone || student.parent.user.profile?.phone,
+            },
+          },
+        },
+      });
+      await prisma.parent.update({
+        where: { id: student.parent.id },
+        data: {
+          relation: parentRelation || student.parent.relation,
+        },
+      });
+    }
+    revalidatePath("/dashboard/admissions");
+    revalidatePath("/dashboard/students");
+    return {
+      success: true,
+      message: "Student admission updated successfully!",
+      data: {
+        studentId: student.id,
+        parentId: student.parentId,
+        applicationNo: `ADM-${rollNumber || student.rollNumber}`,
+      },
+    };
+  } catch (error) {
+    console.error("❌ Error updating student admission:", error);
+    return { success: false, message: "Failed to update student admission" };
+  }
+}
+
+/**
+ * Delete a student admission (student, user, and parent if no other children)
+ */
+export async function deleteStudentAdmission(studentId: string): Promise<{ success: boolean; message: string }> {
+  try {
+    const session = await requireAuth();
+    // Find the student with parent info
+    const student = await prisma.student.findUnique({
+      where: { id: studentId, aamarId: session.aamarId },
+      include: { parent: { include: { user: true, students: true } }, user: true },
+    });
+    if (!student) {
+      return { success: false, message: 'Student not found' };
+    }
+    // Delete the student and their user
+    await prisma.student.delete({ where: { id: studentId } });
+    await prisma.user.delete({ where: { id: student.userId } });
+    // If parent has no other children, delete parent and parent user
+    if (student.parent && typeof student.parentId === 'string' && student.parent.students.length === 1) {
+      const parentId: string = student.parentId;
+      await prisma.parent.delete({ where: { id: parentId } });
+      await prisma.user.delete({ where: { id: student.parent.userId } });
+    }
+    revalidatePath('/dashboard/admissions');
+    revalidatePath('/dashboard/students');
+    revalidatePath('/dashboard/parents');
+    return { success: true, message: 'Student and related records deleted successfully.' };
+  } catch (error) {
+    console.error('❌ Error deleting student admission:', error);
+    return { success: false, message: 'Failed to delete student admission.' };
+  }
+}

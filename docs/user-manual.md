@@ -1,183 +1,332 @@
-# User Manual
+# Aamar School Management System - User Manual
 
-## Overview
+## 🎯 Welcome to the Complete User Manual
 
-The Aamar School Management System is designed to streamline school operations and improve communication between administrators, teachers, students, and parents.
+The Aamar School Management System user manual has been reorganized into a comprehensive, easy-to-navigate structure. This main file provides an overview, while detailed guides are available in the organized sections below.
 
-## User Roles
+## 📚 Complete User Manual Structure
 
-### Administrator
+### **NEW: Organized User Manual** 📁
+For the most comprehensive and detailed user manual, please visit the organized version:
 
-#### Dashboard
-- View school statistics
-- Manage users and roles
-- Configure system settings
+**[📖 Complete User Manual Directory](user-manual/)**
+
+This organized version includes:
+
+#### Getting Started
+- **[01 - Getting Started Guide](user-manual/01-getting-started.md)** - System overview, first-time setup, login, requirements
+- **[README - Master Index](user-manual/README.md)** - Complete navigation and overview
+
+#### Role-Specific Guides
+- **[02 - Administrator Guide](user-manual/02-admin-guide.md)** - Complete admin functions and management
+- **[03 - Teacher Guide](user-manual/03-teacher-guide.md)** - Teaching tools and class management
+- **[04 - Student Guide](user-manual/04-student-guide.md)** - Student features and academic tools
+- **[05 - Parent Guide](user-manual/05-parent-guide.md)** - Parent monitoring and communication
+
+#### Support & Help
+- **[06 - Troubleshooting Guide](user-manual/06-troubleshooting.md)** - Common issues and solutions
+- **[07 - FAQ](user-manual/07-faq.md)** - Frequently asked questions and quick answers
+
+---
+
+## 🚀 Quick Start Guide
+
+### What is the Aamar School Management System?
+
+The Aamar School Management System is a comprehensive digital platform designed to streamline all aspects of school operations. It provides a unified interface for administrators, teachers, students, and parents to manage academic activities, track progress, and facilitate communication.
+
+### Key Benefits
+
+- **Centralized Management**: All school operations in one platform
+- **Real-time Updates**: Instant access to attendance, grades, and announcements
+- **Multi-role Access**: Different interfaces for different user types
+- **Mobile Friendly**: Access from any device, anywhere
+- **Secure & Reliable**: Enterprise-grade security and data protection
+
+### User Roles & Capabilities
+
+#### Administrator
+- Manage all users and school settings
+- Generate comprehensive reports
 - Monitor school performance
+- Configure academic policies
 
-#### User Management
-1. Add new users
-2. Assign roles
-3. Manage permissions
-4. Reset passwords
+#### Teacher
+- Take attendance and manage grades
+- Create assignments and assessments
+- Communicate with parents
+- Track student progress
 
-#### School Configuration
-1. Set up academic year
-2. Configure grading system
-3. Manage school branches
-4. Set up fee structure
-
-### Teacher
-
-#### Dashboard
-- View assigned classes
-- Track attendance
-- Manage assignments
-- View student performance
-
-#### Class Management
-1. Take attendance
-2. Create assignments
-3. Grade submissions
-4. Update student progress
-
-#### Communication
-1. Send notices to parents
-2. Schedule parent meetings
-3. Update class announcements
-4. Respond to queries
-
-### Student
-
-#### Dashboard
-- View timetable
-- Check assignments
-- View grades
+#### Student
+- View timetable and assignments
+- Submit work and check grades
+- Access study materials
 - Track attendance
 
-#### Academic
-1. Submit assignments
-2. View exam results
-3. Check attendance
-4. Access study materials
+#### Parent
+- Monitor child's academic progress
+- Pay fees online
+- Communicate with teachers
+- Receive important updates
 
-#### Communication
-1. Contact teachers
-2. View announcements
-3. Check notices
-4. Update profile
+---
 
-### Parent
+## 🔧 System Features
 
-#### Dashboard
-- View child's progress
-- Check attendance
-- View fee status
-- Access notices
+### Core Modules
 
-#### Features
-1. Monitor academic performance
-2. Pay fees online
-3. Communicate with teachers
-4. Track attendance
+**Academic Management**
+- Class and section management
+- Subject management
+- Timetable creation
+- Grade management
+- Assignment system
 
-#### Communication
-1. Receive notifications
-2. Schedule meetings
-3. View school announcements
-4. Contact teachers
+**Student Management**
+- Student registration
+- Profile management
+- Academic tracking
+- Attendance monitoring
+- Progress reporting
 
-## Common Features
+**Teacher Management**
+- Teacher registration
+- Class assignments
+- Performance tracking
+- Communication tools
+- Resource management
 
-### Profile Management
-1. Update personal information
-2. Change password
-3. Upload profile picture
-4. Set notification preferences
+**Fee Management**
+- Fee structure setup
+- Online payments
+- Payment tracking
+- Fee reports
+- Outstanding management
 
-### Notifications
-- Email notifications
-- In-app notifications
-- SMS alerts (optional)
-- Push notifications
+**Communication Tools**
+- Internal messaging
+- Announcements
+- Meeting scheduling
+- Parent communication
+- Notification system
 
-### Calendar
-- View school events
-- Check holidays
-- Track assignments
-- Monitor exams
+**Library Management**
+- Book catalog
+- Borrowing system
+- Digital resources
+- Study materials
+- Resource tracking
 
-## Mobile Access
+**Transport Management**
+- Route management
+- Vehicle tracking
+- Driver management
+- Schedule management
+- Safety monitoring
 
-### Features
-- Responsive design
-- Mobile notifications
-- Quick actions
-- Offline access
+---
 
-### Security
-- Secure login
+## 📱 System Requirements
+
+### Browser Requirements
+- **Chrome**: Version 90 or higher
+- **Firefox**: Version 88 or higher
+- **Safari**: Version 14 or higher
+- **Edge**: Version 90 or higher
+
+### Device Requirements
+- **Desktop/Laptop**: Windows 10+, macOS 10.14+, Linux
+- **Tablet**: iOS 14+, Android 8+
+- **Smartphone**: iOS 14+, Android 8+
+
+### Internet Requirements
+- **Minimum**: 1 Mbps download, 512 Kbps upload
+- **Recommended**: 5 Mbps download, 2 Mbps upload
+
+---
+
+## 🔐 Security Features
+
+### Authentication & Authorization
+- Secure login system
+- Role-based access control
+- Two-factor authentication
 - Session management
-- Data encryption
+- Password policies
+
+### Data Protection
+- Encrypted data transmission
+- Secure data storage
+- Regular backups
+- Access logging
 - Privacy controls
 
-## Support
+---
 
-### Help Resources
-1. FAQ section
-2. Video tutorials
-3. User guides
-4. Contact support
+## 📞 Support & Help
 
-### Technical Support
-- Email: support@aamarschool.com
-- Phone: +1-XXX-XXX-XXXX
-- Live chat: Available 24/7
-- Ticket system: For detailed issues
+### Getting Help
 
-## Best Practices
+**Self-Service Options**
+- **[Complete User Manual](user-manual/)** - Comprehensive documentation
+- **[Troubleshooting Guide](user-manual/06-troubleshooting.md)** - Common issues and solutions
+- **[FAQ Section](user-manual/07-faq.md)** - Quick answers to common questions
 
-### Security
-1. Use strong passwords
-2. Enable 2FA
-3. Log out after sessions
-4. Report suspicious activity
+**Direct Support**
+- **Email**: support@aamarschool.com
+- **Phone**: +1-XXX-XXX-XXXX
+- **Live Chat**: Available 24/7
+- **Ticket System**: For complex issues
 
-### Communication
-1. Check notifications regularly
-2. Respond to messages promptly
-3. Keep contact information updated
-4. Follow communication guidelines
+### Support Hours
+- **Technical Support**: Monday-Friday, 9 AM-6 PM
+- **Emergency Support**: 24/7
+- **Live Chat**: Available 24/7
+- **Email Support**: 24-hour response time
 
-### Data Management
-1. Regular backups
-2. Data privacy
-3. Information accuracy
-4. Access control
+---
 
-## Troubleshooting
+## 🎯 Quick Navigation by User Type
 
-### Common Issues
-1. Login problems
-2. Access issues
-3. Notification delays
-4. System errors
+### For Administrators
+1. **[Getting Started](user-manual/01-getting-started.md)** - System overview
+2. **[Administrator Guide](user-manual/02-admin-guide.md)** - Complete admin functions
+3. **[Troubleshooting](user-manual/06-troubleshooting.md)** - Support and issues
+4. **[FAQ](user-manual/07-faq.md)** - Quick answers
 
-### Solutions
-1. Clear cache
-2. Reset password
-3. Check internet connection
-4. Contact support
+### For Teachers
+1. **[Getting Started](user-manual/01-getting-started.md)** - System basics
+2. **[Teacher Guide](user-manual/03-teacher-guide.md)** - Teaching tools
+3. **[Troubleshooting](user-manual/06-troubleshooting.md)** - Support
+4. **[FAQ](user-manual/07-faq.md)** - Common questions
 
-## Updates
+### For Students
+1. **[Getting Started](user-manual/01-getting-started.md)** - System overview
+2. **[Student Guide](user-manual/04-student-guide.md)** - Student features
+3. **[Troubleshooting](user-manual/06-troubleshooting.md)** - Help
+4. **[FAQ](user-manual/07-faq.md)** - Quick answers
+
+### For Parents
+1. **[Getting Started](user-manual/01-getting-started.md)** - System overview
+2. **[Parent Guide](user-manual/05-parent-guide.md)** - Parent features
+3. **[Troubleshooting](user-manual/06-troubleshooting.md)** - Support
+4. **[FAQ](user-manual/07-faq.md)** - Common questions
+
+---
+
+## 📋 Getting Started Checklist
+
+### For New Users
+- [ ] Read the **[Getting Started Guide](user-manual/01-getting-started.md)**
+- [ ] Complete your profile setup
+- [ ] Explore your dashboard
+- [ ] Try basic functions
+- [ ] Set up notifications
+- [ ] Read your role-specific guide
+
+### For Administrators
+- [ ] Complete system setup
+- [ ] Configure school settings
+- [ ] Add users and assign roles
+- [ ] Set up academic calendar
+- [ ] Configure fee structure
+- [ ] Test all modules
+
+### For Teachers
+- [ ] Review assigned classes
+- [ ] Set up attendance tracking
+- [ ] Create sample assignments
+- [ ] Test communication tools
+- [ ] Review reporting features
+- [ ] Practice grading system
+
+### For Students
+- [ ] Complete profile information
+- [ ] Review class schedule
+- [ ] Check assignment submission
+- [ ] Test communication features
+- [ ] Explore library resources
+- [ ] Set up notifications
+
+### For Parents
+- [ ] Link child accounts
+- [ ] Review academic progress
+- [ ] Test fee payment system
+- [ ] Set up communication preferences
+- [ ] Explore monitoring features
+- [ ] Configure notifications
+
+---
+
+## 🔄 Updates & Maintenance
 
 ### System Updates
-- Regular maintenance
-- Feature updates
+- Regular feature updates
 - Security patches
 - Performance improvements
+- Bug fixes
 
-### User Notifications
-- Update announcements
-- Maintenance schedules
-- New feature guides
-- Security alerts 
+### Maintenance Windows
+- Scheduled maintenance: Sundays, 2 AM-6 AM
+- Emergency maintenance: As needed
+- User notifications: 24 hours in advance
+
+---
+
+## 📊 Training Resources
+
+### Available Training
+- **Online Tutorials**: Step-by-step guides in the user manual
+- **Video Training**: Visual demonstrations
+- **Webinars**: Live training sessions
+- **Documentation**: Comprehensive guides
+- **Support Sessions**: One-on-one help
+
+---
+
+## 🤝 Feedback & Improvement
+
+### Providing Feedback
+- **Feature Requests**: Submit through support
+- **Bug Reports**: Include detailed information
+- **Improvement Suggestions**: Share ideas
+- **User Surveys**: Regular feedback collection
+
+---
+
+## 📞 Contact Information
+
+**Technical Support**
+- Email: support@aamarschool.com
+- Phone: +1-XXX-XXX-XXXX
+- Live Chat: Available 24/7
+
+**School Administration**
+- Contact your school's main office
+- Speak with IT department
+- Request administrator access
+
+**Emergency Support**
+- Emergency Line: Available 24/7
+- Critical Issues: Immediate response
+- System Outages: Priority handling
+
+---
+
+## 📚 Recommended Reading Order
+
+1. **[Getting Started Guide](user-manual/01-getting-started.md)** - Essential for all users
+2. **Your Role-Specific Guide** - Based on your user type
+3. **[Troubleshooting Guide](user-manual/06-troubleshooting.md)** - For any issues
+4. **[FAQ](user-manual/07-faq.md)** - For quick answers
+5. **[Master Index](user-manual/README.md)** - For complete navigation
+
+---
+
+*This user manual is regularly updated to reflect the latest system features and improvements. For the most current and comprehensive information, please use the organized user manual in the [user-manual/](user-manual/) directory.*
+
+**Last Updated**: December 2024
+**Version**: 2.0
+**System Version**: Aamar School Management System v2.0
+
+**📖 For the complete organized user manual, visit: [user-manual/](user-manual/)** 

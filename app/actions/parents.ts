@@ -388,9 +388,10 @@ export async function deleteParent(id: string) {
         error: 'Parent not found',
       };
     }
-
+    
     // Check if parent has students
     if (existingParent.students.length > 0) {
+      console.log("checking parent delete:", existingParent.students)
       return {
         success: false,
         error: 'Cannot delete parent with students',
