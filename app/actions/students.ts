@@ -45,6 +45,7 @@ export async function updateStudent(studentId: string, formData: {
   rollNumber: string;
   isActive: boolean;
   admissionDate: string;
+  sectionId?: string;
   // Parent information (optional)
   parentFirstName?: string;
   parentLastName?: string;
@@ -120,6 +121,7 @@ export async function updateStudent(studentId: string, formData: {
         data: {
           rollNumber: formData.rollNumber,
           admissionDate: new Date(formData.admissionDate),
+          ...(formData.sectionId ? { sectionId: formData.sectionId } : {}),
         },
       });
 

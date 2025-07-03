@@ -3,14 +3,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-const stats = [
-  { label: "Total Teachers", value: "89", change: "+5%", changeType: "increase" },
-  { label: "New Hires", value: "12", change: "+15%", changeType: "increase" },
-  { label: "On Leave", value: "7", change: "-2%", changeType: "decrease" },
-  { label: "Full-time", value: "76" },
-  { label: "Part-time", value: "13" },
-] as const;
-
 const StatCard = ({ label, value, change, changeType }: { label: string; value: string; change?: string; changeType?: "increase" | "decrease" }) => (
   <div className="flex flex-col p-3">
     <p className="text-xs text-muted-foreground mb-1">{label}</p>
@@ -30,7 +22,38 @@ const StatCard = ({ label, value, change, changeType }: { label: string; value: 
   </div>
 );
 
-export function TeachersOverview() {
+export function TeachersOverview({
+  totalTeachers = "89",
+  newHires = "12",
+  onLeave = "7",
+  fullTime = "76",
+  partTime = "13",
+  teachersChange = "+5%",
+  newHiresChange = "+15%",
+  onLeaveChange = "-2%",
+  teachersChangeType = "increase",
+  newHiresChangeType = "increase",
+  onLeaveChangeType = "decrease",
+} : {
+  totalTeachers?: string | number;
+  newHires?: string | number;
+  onLeave?: string | number;
+  fullTime?: string | number;
+  partTime?: string | number;
+  teachersChange?: string;
+  newHiresChange?: string;
+  onLeaveChange?: string;
+  teachersChangeType?: "increase" | "decrease";
+  newHiresChangeType?: "increase" | "decrease";
+  onLeaveChangeType?: "increase" | "decrease";
+}) {
+  const stats = [
+    { label: "Total Teachers", value: totalTeachers, change: teachersChange, changeType: teachersChangeType },
+    { label: "New Hires", value: newHires, change: newHiresChange, changeType: newHiresChangeType },
+    { label: "On Leave", value: onLeave, change: onLeaveChange, changeType: onLeaveChangeType },
+    { label: "Full-time", value: fullTime },
+    { label: "Part-time", value: partTime },
+  ];
   return (
     <Card>
       <CardHeader className="pb-3">

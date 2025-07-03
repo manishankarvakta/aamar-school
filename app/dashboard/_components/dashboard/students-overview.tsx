@@ -3,14 +3,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-const stats = [
-  { label: "Overall Students", value: "12,200", change: "+10%", changeType: "increase" },
-  { label: "New Admissions", value: "3,900", change: "+10%", changeType: "increase" },
-  { label: "Dropouts", value: "10", change: "-1.8%", changeType: "decrease" },
-  { label: "Boys", value: "6,000" },
-  { label: "Girls", value: "6,200" },
-] as const;
-
 const StatCard = ({ label, value, change, changeType }: { label: string; value: string; change?: string; changeType?: "increase" | "decrease" }) => (
   <div className="flex flex-col p-3">
     <p className="text-xs text-muted-foreground mb-1">{label}</p>
@@ -30,7 +22,38 @@ const StatCard = ({ label, value, change, changeType }: { label: string; value: 
   </div>
 );
 
-export function StudentsOverview() {
+export function StudentsOverview({
+  totalStudents = "12,200",
+  newAdmissions = "3,900",
+  dropouts = "10",
+  boys = "6,000",
+  girls = "6,200",
+  studentsChange = "+10%",
+  admissionsChange = "+10%",
+  dropoutsChange = "-1.8%",
+  studentsChangeType = "increase",
+  admissionsChangeType = "increase",
+  dropoutsChangeType = "decrease",
+} : {
+  totalStudents?: string | number;
+  newAdmissions?: string | number;
+  dropouts?: string | number;
+  boys?: string | number;
+  girls?: string | number;
+  studentsChange?: string;
+  admissionsChange?: string;
+  dropoutsChange?: string;
+  studentsChangeType?: "increase" | "decrease";
+  admissionsChangeType?: "increase" | "decrease";
+  dropoutsChangeType?: "increase" | "decrease";
+}) {
+  const stats = [
+    { label: "Overall Students", value: totalStudents, change: studentsChange, changeType: studentsChangeType },
+    { label: "New Admissions", value: newAdmissions, change: admissionsChange, changeType: admissionsChangeType },
+    { label: "Dropouts", value: dropouts, change: dropoutsChange, changeType: dropoutsChangeType },
+    { label: "Boys", value: boys },
+    { label: "Girls", value: girls },
+  ];
   return (
     <Card>
       <CardHeader className="pb-3">

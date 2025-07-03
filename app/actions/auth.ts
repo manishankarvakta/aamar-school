@@ -5,7 +5,6 @@ import bcrypt from 'bcryptjs';
 import { UserRole } from '@prisma/client';
 import { z } from 'zod';
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
 
 const registerSchema = z.object({
   schoolName: z.string().min(3, 'School name must be at least 3 characters'),
@@ -47,7 +46,6 @@ function generateSchoolCode(schoolName: string): string {
 }
 
 export async function registerSchoolAndAdmin(
-  prevState: any,
   formData: FormData
 ) {
   const data = Object.fromEntries(formData.entries());

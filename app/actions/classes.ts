@@ -42,6 +42,17 @@ interface ClassData {
     address: string | null;
     phone: string | null;
   } | null;
+  sections?: Array<{
+    id: string;
+    name: string;
+    displayName: string;
+    capacity: number;
+    students: Array<{
+      id: string;
+      name: string;
+      rollNumber: string;
+    }>;
+  }>;
 }
 
 interface ClassResult {
@@ -180,7 +191,16 @@ export async function getClasses(): Promise<ClassResult> {
         subjects: true,
         sections: {
           include: {
-            students: true,
+            students: {
+              include: {
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                  },
+                },
+              },
+            },
           },
         },
         _count: {
@@ -221,6 +241,17 @@ export async function getClasses(): Promise<ClassResult> {
         address: cls.branch.address,
         phone: cls.branch.phone,
       } : null,
+      sections: cls.sections.map(section => ({
+        id: section.id,
+        name: section.name,
+        displayName: section.displayName,
+        capacity: section.capacity,
+        students: section.students.map(student => ({
+          id: student.id,
+          name: `${student.user.firstName} ${student.user.lastName}`,
+          rollNumber: student.rollNumber,
+        })),
+      })),
     }));
 
     return {
@@ -266,8 +297,9 @@ export async function getClassById(id: string): Promise<ClassResult> {
             students: {
               include: {
                 user: {
-                  include: {
-                    profile: true,
+                  select: {
+                    firstName: true,
+                    lastName: true,
                   },
                 },
               },
@@ -316,6 +348,17 @@ export async function getClassById(id: string): Promise<ClassResult> {
         address: classData.branch.address,
         phone: classData.branch.phone,
       } : null,
+      sections: classData.sections.map(section => ({
+        id: section.id,
+        name: section.name,
+        displayName: section.displayName,
+        capacity: section.capacity,
+        students: section.students.map(student => ({
+          id: student.id,
+          name: `${student.user.firstName} ${student.user.lastName}`,
+          rollNumber: student.rollNumber,
+        })),
+      })),
     };
 
     return {
@@ -487,7 +530,7 @@ export async function deleteClass(id: string): Promise<ClassResult> {
       return {
         success: false,
         error: 'Cannot delete class with students',
-        message: 'Please move or remove all students before deleting this class',
+        message: `Cannot delete class "${existingClass.name}" because it has ${totalStudents} students enrolled. Please move all students to other classes first.`,
       };
     }
 
@@ -496,7 +539,7 @@ export async function deleteClass(id: string): Promise<ClassResult> {
       return {
         success: false,
         error: 'Cannot delete class with subjects or timetables',
-        message: 'Please remove all subjects and timetables before deleting this class',
+        message: `Cannot delete class "${existingClass.name}" because it has ${existingClass.subjects.length} subjects and ${existingClass.timetables.length} timetables. Please remove all subjects and timetables first.`,
       };
     }
 
@@ -544,7 +587,16 @@ export async function getClassesByBranch(branchId: string): Promise<ClassResult>
         subjects: true,
         sections: {
           include: {
-            students: true,
+            students: {
+              include: {
+                user: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                  },
+                },
+              },
+            },
           },
         },
         _count: {
@@ -584,6 +636,17 @@ export async function getClassesByBranch(branchId: string): Promise<ClassResult>
         address: cls.branch.address,
         phone: cls.branch.phone,
       } : null,
+      sections: cls.sections.map(section => ({
+        id: section.id,
+        name: section.name,
+        displayName: section.displayName,
+        capacity: section.capacity,
+        students: section.students.map(student => ({
+          id: student.id,
+          name: `${student.user.firstName} ${student.user.lastName}`,
+          rollNumber: student.rollNumber,
+        })),
+      })),
     }));
 
     return {
@@ -644,6 +707,9 @@ export async function assignStudentsToClass(classId: string, studentIds: string[
     
     // Log the studentIds for future implementation
     console.log(`Future implementation: Assign ${studentIds.length} students to class ${classId}`);
+    
+    // When this function is fully implemented, add revalidation here
+    // revalidatePath('/dashboard/classes');
     
     return {
       success: true,

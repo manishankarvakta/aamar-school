@@ -37,9 +37,9 @@ import {
   createTeacher,
   updateTeacher,
   deleteTeacher,
-  searchTeachers,
   getTeacherStats
 } from '@/app/actions/teachers';
+import { getBranchesByAamarId } from '@/app/actions/branches';
 
 interface Teacher {
   id: string;
@@ -83,6 +83,11 @@ export default function TeachersPage() {
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [branches, setBranches] = useState<any[]>([]);
+  const [branchLoading, setBranchLoading] = useState(false);
+
+
+  console.log("branches",branches);
   
   // Pagination state (like parents page)
   const [currentPage, setCurrentPage] = useState(1);
@@ -91,6 +96,25 @@ export default function TeachersPage() {
   // Additional filters
   const [experienceFilter, setExperienceFilter] = useState('all');
   const [branchFilter, setBranchFilter] = useState('all');
+
+
+  // Fetch branches by aamarId on mount
+  useEffect(() => {
+    async function fetchBranches() {
+      setBranchLoading(true);
+      const result = await getBranchesByAamarId();
+      console.log("result",result);
+      if (result.success && Array.isArray(result.data)) {
+        setBranches(result.data);
+      } else if (result.success && result.data) {
+        setBranches([result.data]);
+      } else {
+        setBranches([]);
+      }
+      setBranchLoading(false);
+    }
+    fetchBranches();
+  }, [showAddDialog]);
 
   // Load teachers and stats
   useEffect(() => {
@@ -710,8 +734,17 @@ export default function TeachersPage() {
                 <Input name="specialization" />
               </div>
               <div className="space-y-2">
-                <Label>Branch ID *</Label>
-                <Input name="branchId" required placeholder="Enter branch ID" />
+                <Label>Branch *</Label>
+                <Select name="branchId" required>
+                  <SelectTrigger disabled={branchLoading} className="w-full">
+                    <SelectValue placeholder={branchLoading ? "Loading branches..." : "Select branch"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="flex justify-end gap-2">
