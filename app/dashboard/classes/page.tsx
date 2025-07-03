@@ -68,7 +68,7 @@ import {
   createClass,
 } from "@/app/actions/classes";
 import { getSubjects } from "@/app/actions/subjects";
-import { getStudents } from "@/app/actions/students";
+import { getStudents, getStudentsByClass, updateStudent } from "@/app/actions/students";
 import { getTeachers } from "@/app/actions/teachers";
 import { getBranchesByAamarId } from "@/app/actions/branches";
 import {
@@ -78,6 +78,7 @@ import {
   deleteSection,
   getSectionStats,
 } from "@/app/actions/sections";
+import { generateRollNumber } from "@/app/actions/admission";
 
 interface ClassData {
   id: string;
@@ -225,6 +226,12 @@ export default function ClassesPage() {
   const [showDeleteSectionDialog, setShowDeleteSectionDialog] = useState(false);
   const [selectedSection, setSelectedSection] = useState<SectionData | null>(null);
   const [showViewSectionDialog, setShowViewSectionDialog] = useState(false);
+  const [showManageStudentsDialog, setShowManageStudentsDialog] = useState(false);
+  const [manageStudentsSection, setManageStudentsSection] = useState<SectionData | null>(null);
+  const [manageStudents, setManageStudents] = useState<any[]>([]); // students in class
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [targetSectionId, setTargetSectionId] = useState<string>("");
+  const [manageStudentsLoading, setManageStudentsLoading] = useState(false);
 
   // Dialog states
   const [selectedClass, setSelectedClass] = useState<ClassData | null>(null);
@@ -232,8 +239,6 @@ export default function ClassesPage() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showTimetableDialog, setShowTimetableDialog] = useState(false);
-  const [showManageStudentsDialog, setShowManageStudentsDialog] =
-    useState(false);
 
   // Form states
   const [editForm, setEditForm] = useState({
@@ -250,7 +255,6 @@ export default function ClassesPage() {
     teacherId: "",
     capacity: 40,
   });
-  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
 
   const { toast } = useToast();
 
@@ -522,14 +526,24 @@ export default function ClassesPage() {
     setShowEditDialog(true);
   };
 
-  const handleManageStudents = (classData: ClassData) => {
-    // TODO: Fix type issues
-    // setSelectedClass(classData);
-    // setSelectedStudentIds(classData.students.map(s => s.id));
-    // setShowManageStudentsDialog(true);
-    console.log(
-      "Manage students feature temporarily disabled due to type issues",
-    );
+  const handleManageStudents = async (section: SectionData) => {
+    setManageStudentsSection(section);
+    setShowManageStudentsDialog(true);
+    setSelectedStudentIds([]);
+    setTargetSectionId("");
+    setManageStudentsLoading(true);
+    const res = await getStudentsByClass(section.class.id);
+    if (res.success) {
+      setManageStudents(res.data || []);
+    } else {
+      setManageStudents([]);
+      toast({
+        title: "Error",
+        description: "Failed to load students for this class.",
+        variant: "destructive"
+      });
+    }
+    setManageStudentsLoading(false);
   };
 
   const handleViewTimetable = (classData: ClassData) => {
@@ -850,6 +864,74 @@ export default function ClassesPage() {
   const handleViewSection = (section: SectionData) => {
     setSelectedSection(section);
     setShowViewSectionDialog(true);
+  };
+
+  const handleMoveStudents = async () => {
+    if (!targetSectionId) {
+      toast({
+        title: "Select Target Section",
+        description: "Please select a section to move students to.",
+        variant: "destructive"
+      });
+      return;
+    }
+    if (selectedStudentIds.length === 0) {
+      toast({
+        title: "No Students Selected",
+        description: "Please select at least one student to move.",
+        variant: "destructive"
+      });
+      return;
+    }
+    setManageStudentsLoading(true);
+    let allSuccess = true;
+    for (const studentId of selectedStudentIds) {
+      const student = manageStudents.find((s) => s.id === studentId);
+      if (!student) continue;
+      let newRoll = "";
+      try {
+        newRoll = await generateRollNumber(targetSectionId);
+      } catch (err) {
+        toast({
+          title: "Error Generating Roll Number",
+          description: `Could not generate roll number for ${student.user.firstName} ${student.user.lastName}.`,
+          variant: "destructive"
+        });
+        allSuccess = false;
+        break;
+      }
+      const result = await updateStudent(studentId, {
+        firstName: student.user.firstName,
+        lastName: student.user.lastName,
+        email: student.user.email,
+        isActive: student.user.isActive,
+        rollNumber: newRoll,
+        admissionDate: student.admissionDate,
+        sectionId: targetSectionId,
+      });
+      if (!result.success) {
+        toast({
+          title: "Failed to Move Student",
+          description: result.error || result.message,
+          variant: "destructive"
+        });
+        allSuccess = false;
+        break;
+      }
+    }
+    setManageStudentsLoading(false);
+    if (allSuccess) {
+      toast({
+        title: "Students Moved",
+        description: "Selected students have been moved to the new section.",
+        variant: "default"
+      });
+      setShowManageStudentsDialog(false);
+      setManageStudentsSection(null);
+      setSelectedStudentIds([]);
+      setTargetSectionId("");
+      await loadData();
+    }
   };
 
   if (loading) {
@@ -1276,6 +1358,10 @@ export default function ClassesPage() {
                                 <DropdownMenuItem onClick={() => handleEditSection(section)}>
                                   <EditIcon className="h-4 w-4 mr-2" />
                                   Edit Section
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleManageStudents(section)}>
+                                  <UsersIcon className="h-4 w-4 mr-2" />
+                                  Manage Students
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => handleDeleteSection(section)}
@@ -2319,6 +2405,107 @@ export default function ClassesPage() {
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button variant="outline" onClick={() => setShowViewSectionDialog(false)}>
                   Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Students Dialog */}
+      <Dialog open={showManageStudentsDialog} onOpenChange={setShowManageStudentsDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Manage Students in Section {manageStudentsSection?.name}</DialogTitle>
+          </DialogHeader>
+          {manageStudentsLoading ? (
+            <div className="flex items-center justify-center min-h-[200px]">
+              <LoaderIcon className="h-6 w-6 animate-spin" />
+              <span className="ml-2">Loading students...</span>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center gap-4">
+                <div className="flex-1">
+                  <Label>Target Section *</Label>
+                  <Select
+                    value={targetSectionId}
+                    onValueChange={setTargetSectionId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select section" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sections
+                        .filter(s => s.class.id === manageStudentsSection?.class.id && s.id !== manageStudentsSection?.id)
+                        .map(s => (
+                          <SelectItem key={s.id} value={s.id}>
+                            Section {s.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>
+                        <input
+                          type="checkbox"
+                          checked={selectedStudentIds.length === manageStudents.filter(s => s.sectionId === manageStudentsSection?.id).length && manageStudents.filter(s => s.sectionId === manageStudentsSection?.id).length > 0}
+                          onChange={e => {
+                            if (e.target.checked) {
+                              setSelectedStudentIds(manageStudents.filter(s => s.sectionId === manageStudentsSection?.id).map(s => s.id));
+                            } else {
+                              setSelectedStudentIds([]);
+                            }
+                          }}
+                        />
+                      </TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Current Roll</TableHead>
+                      <TableHead>New Roll Number</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {manageStudents.filter(s => s.sectionId === manageStudentsSection?.id).map(student => (
+                      <TableRow key={student.id}>
+                        <TableCell>
+                          <input
+                            type="checkbox"
+                            checked={selectedStudentIds.includes(student.id)}
+                            onChange={e => {
+                              if (e.target.checked) {
+                                setSelectedStudentIds([...selectedStudentIds, student.id]);
+                              } else {
+                                setSelectedStudentIds(selectedStudentIds.filter(id => id !== student.id));
+                              }
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell>{student.user.firstName} {student.user.lastName}</TableCell>
+                        <TableCell>{student.rollNumber}</TableCell>
+                        <TableCell>Auto-generated</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button variant="outline" onClick={() => setShowManageStudentsDialog(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleMoveStudents} disabled={manageStudentsLoading}>
+                  {manageStudentsLoading ? (
+                    <>
+                      <LoaderIcon className="h-4 w-4 mr-2 animate-spin" />
+                      Moving...
+                    </>
+                  ) : (
+                    "Move Selected"
+                  )}
                 </Button>
               </div>
             </div>
