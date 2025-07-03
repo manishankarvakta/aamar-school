@@ -13,6 +13,8 @@ export interface SubjectResult {
 
 // Create new subject
 export async function createSubject(formData: FormData): Promise<SubjectResult> {
+  const session = await requireAuth();
+  const aamarId = session.aamarId;
   try {
     const data = {
       name: formData.get('name') as string,
@@ -20,7 +22,7 @@ export async function createSubject(formData: FormData): Promise<SubjectResult> 
       description: formData.get('description') as string,
       schoolId: formData.get('schoolId') as string,
       classId: formData.get('classId') as string,
-      aamarId: formData.get('aamarId') as string || '234567',
+      aamarId: aamarId,
     };
 
     // Validate required fields
@@ -54,7 +56,7 @@ export async function createSubject(formData: FormData): Promise<SubjectResult> 
         description: data.description,
         schoolId: data.schoolId,
         classId: data.classId,
-        aamarId: data.aamarId,
+        aamarId: aamarId,
       }
     });
 
@@ -483,7 +485,9 @@ export async function getSubjectStats() {
 }
 
 // Search subjects
-export async function searchSubjects(query: string, aamarId: string = '234567') {
+export async function searchSubjects(query: string) {
+  const session = await requireAuth();
+  const aamarId = session.aamarId
   try {
     const subjects = await prisma.subject.findMany({
       where: {
@@ -582,13 +586,15 @@ export async function searchSubjects(query: string, aamarId: string = '234567') 
 
 // Create new chapter
 export async function createChapter(formData: FormData): Promise<SubjectResult> {
+  const session = await requireAuth();
+  const aamarId = session.aamarId;
   try {
     const data = {
       name: formData.get('name') as string,
       description: formData.get('description') as string,
       orderIndex: parseInt(formData.get('orderIndex') as string),
       subjectId: formData.get('subjectId') as string,
-      aamarId: formData.get('aamarId') as string || '234567',
+      aamarId: aamarId,
     };
 
     // Validate required fields
@@ -606,7 +612,7 @@ export async function createChapter(formData: FormData): Promise<SubjectResult> 
         description: data.description,
         orderIndex: data.orderIndex,
         subjectId: data.subjectId,
-        aamarId: data.aamarId,
+        aamarId: aamarId,
       }
     });
 
@@ -634,7 +640,7 @@ export async function getChaptersBySubject(subjectId: string) {
   try {
     const chapters = await prisma.chapter.findMany({
       where: {
-        subjectId: subjectId
+        subjectId: subjectId,
       },
       include: {
         lessons: {
@@ -762,6 +768,8 @@ export async function deleteChapter(chapterId: string): Promise<SubjectResult> {
 
 // Create lesson
 export async function createLesson(formData: FormData): Promise<SubjectResult> {
+  const session = await requireAuth();
+  const aamarId = session.aamarId;
   try {
     const data = {
       name: formData.get('name') as string,
@@ -789,7 +797,7 @@ export async function createLesson(formData: FormData): Promise<SubjectResult> {
         duration: data.duration,
         lessonType: data.lessonType as LessonType,
         chapterId: data.chapterId,
-        aamarId: '234567', // Default aamarId
+        aamarId: aamarId, // Default aamarId
       }
     });
 
