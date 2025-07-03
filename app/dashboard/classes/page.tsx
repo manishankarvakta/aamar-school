@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -21,7 +20,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -40,7 +38,6 @@ import {
 import {
   PlusIcon,
   SearchIcon,
-  FilterIcon,
   MoreVerticalIcon,
   EyeIcon,
   EditIcon,
@@ -49,10 +46,7 @@ import {
   DownloadIcon,
   TrashIcon,
   BookOpenIcon,
-  MapPinIcon,
   TrendingUpIcon,
-  ClockIcon,
-  XIcon,
   LoaderIcon,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
@@ -61,10 +55,8 @@ import { useToast } from "@/components/ui/use-toast";
 import {
   getClasses,
   getClassStats,
-  searchClasses,
   updateClass,
   deleteClass,
-  assignStudentsToClass,
   createClass,
 } from "@/app/actions/classes";
 import { getSubjects } from "@/app/actions/subjects";
@@ -389,9 +381,9 @@ export default function ClassesPage() {
       new Set(allBranches.map((branch) => branch.name).filter(Boolean)),
     ) as string[]),
   ];
-  const academicYears = Array.from(
-    new Set(classes.map((cls) => cls.academicYear)),
-  );
+  // const academicYears = Array.from(
+  //   new Set(classes.map((cls) => cls.academicYear)),
+  // );
 
   const statisticsCards = [
     {
@@ -501,12 +493,12 @@ export default function ClassesPage() {
       .slice(0, 2);
   };
 
-  const getCapacityColor = (current: number, capacity: number = 40) => {
-    const percentage = (current / capacity) * 100;
-    if (percentage >= 95) return "text-red-600";
-    if (percentage >= 85) return "text-yellow-600";
-    return "text-green-600";
-  };
+  // const getCapacityColor = (current: number, capacity: number = 40) => {
+  //   const percentage = (current / capacity) * 100;
+  //   if (percentage >= 95) return "text-red-600";
+  //   if (percentage >= 85) return "text-yellow-600";
+  //   return "text-green-600";
+  // };
 
   // Action handlers
   const handleViewDetails = (classData: ClassData) => {
@@ -687,32 +679,32 @@ export default function ClassesPage() {
     }
   };
 
-  const handleSaveStudentAssignments = async () => {
-    if (!selectedClass) return;
+  // const handleSaveStudentAssignments = async () => {
+  //   if (!selectedClass) return;
 
-    try {
-      setLoading(true);
-      const result = await assignStudentsToClass(
-        selectedClass.id,
-        selectedStudentIds,
-      );
+  //   try {
+  //     setLoading(true);
+  //     const result = await assignStudentsToClass(
+  //       selectedClass.id,
+  //       selectedStudentIds,
+  //     );
 
-      if (result.success) {
-        // Close dialog - Next.js will automatically revalidate
-        setShowManageStudentsDialog(false);
-        setSelectedClass(null);
-      } else {
-        throw new Error(result.error || "Failed to assign students");
-      }
-    } catch (error) {
-      console.error("Error assigning students:", error);
-      setError(
-        error instanceof Error ? error.message : "Failed to assign students",
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     if (result.success) {
+  //       // Close dialog - Next.js will automatically revalidate
+  //       setShowManageStudentsDialog(false);
+  //       setSelectedClass(null);
+  //     } else {
+  //       throw new Error(result.error || "Failed to assign students");
+  //     }
+  //   } catch (error) {
+  //     console.error("Error assigning students:", error);
+  //     setError(
+  //       error instanceof Error ? error.message : "Failed to assign students",
+  //     );
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const handleSaveAdd = async () => {
     // Form validation

@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { LessonType } from '@prisma/client';
+import { requireAuth } from '@/lib/session';
 
 export interface SubjectResult {
   success: boolean;
@@ -77,12 +78,14 @@ export async function createSubject(formData: FormData): Promise<SubjectResult> 
 }
 
 // Get all subjects by aamarId
-export async function getSubjects(aamarId: string = '234567') {
+export async function getSubjects() {
+  const session = await requireAuth();
+
   try {
     const subjects = await prisma.subject.findMany({
       where: {
         school: {
-          aamarId: aamarId
+          aamarId: session.aamarId
         }
       },
       include: {
@@ -387,12 +390,36 @@ export async function deleteSubject(subjectId: string): Promise<SubjectResult> {
 }
 
 // Get subject statistics
-export async function getSubjectStats(aamarId: string = '234567') {
+export async function getSubjectStats() {
+  const session = await requireAuth();
+  const aamarId = session.aamarId;
   try {
     const totalSubjects = await prisma.subject.count({
       where: {
         school: {
           aamarId: aamarId
+        }
+      }
+    });
+
+    const totalChapters = await prisma.chapter.count({
+      where: {
+        subject: {
+          school: {
+            aamarId: aamarId
+          }
+        }
+      }
+    });
+
+    const totalLessons = await prisma.lesson.count({
+      where: {
+        chapter: {
+          subject: {
+            school: {
+              aamarId: aamarId
+            }
+          }
         }
       }
     });
@@ -438,6 +465,8 @@ export async function getSubjectStats(aamarId: string = '234567') {
       success: true,
       data: {
         totalSubjects,
+        totalChapters,
+        totalLessons,
         newThisMonth,
         classWiseCount,
         schoolWiseCount,
