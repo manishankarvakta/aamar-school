@@ -205,10 +205,26 @@ export default function ClassesPage() {
 
   // Section-specific states
   const [sectionSearchTerm, setSectionSearchTerm] = useState("");
-  const [selectedSectionClass, setSelectedSectionClass] =
-    useState("All Classes");
-  const [selectedSectionBranch, setSelectedSectionBranch] =
-    useState("All Branches");
+  const [selectedSectionClass, setSelectedSectionClass] = useState("All Classes");
+  const [selectedSectionBranch, setSelectedSectionBranch] = useState("All Branches");
+  const [showAddSectionDialog, setShowAddSectionDialog] = useState(false);
+  const [addSectionForm, setAddSectionForm] = useState({
+    name: "",
+    capacity: 40,
+    classId: ""
+  });
+  const [addSectionError, setAddSectionError] = useState<string | null>(null);
+  const [showEditSectionDialog, setShowEditSectionDialog] = useState(false);
+  const [editSectionForm, setEditSectionForm] = useState({
+    id: "",
+    name: "",
+    capacity: 40,
+    classId: ""
+  });
+  const [editSectionError, setEditSectionError] = useState<string | null>(null);
+  const [showDeleteSectionDialog, setShowDeleteSectionDialog] = useState(false);
+  const [selectedSection, setSelectedSection] = useState<SectionData | null>(null);
+  const [showViewSectionDialog, setShowViewSectionDialog] = useState(false);
 
   // Dialog states
   const [selectedClass, setSelectedClass] = useState<ClassData | null>(null);
@@ -776,6 +792,66 @@ export default function ClassesPage() {
     },
   ];
 
+  const handleEditSection = (section: SectionData) => {
+    setEditSectionForm({
+      id: section.id,
+      name: section.name,
+      capacity: section.capacity,
+      classId: section.class.id,
+    });
+    setEditSectionError(null);
+    setShowEditSectionDialog(true);
+  };
+
+  const handleDeleteSection = (section: SectionData) => {
+    setSelectedSection(section);
+    setShowDeleteSectionDialog(true);
+  };
+
+  const handleConfirmDeleteSection = async () => {
+    if (!selectedSection) return;
+    try {
+      const result = await deleteSection(selectedSection.id);
+      if (result.success) {
+        toast({
+          title: "Section Deleted",
+          description: result.message,
+          variant: "default"
+        });
+        setShowDeleteSectionDialog(false);
+        setSelectedSection(null);
+        await loadData();
+      } else {
+        const msg = result.message || "Failed to delete section";
+        if (msg.toLowerCase().includes("student")) {
+          toast({
+            title: "Cannot Delete Section",
+            description: msg,
+            variant: "destructive"
+          });
+          // Do NOT close dialog or reload data
+        } else {
+          toast({
+            title: "Failed to Delete Section",
+            description: msg,
+            variant: "destructive"
+          });
+        }
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "An error occurred while deleting section.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleViewSection = (section: SectionData) => {
+    setSelectedSection(section);
+    setShowViewSectionDialog(true);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -1070,7 +1146,7 @@ export default function ClassesPage() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => setShowAddSectionDialog(true)}>
                   <PlusIcon className="h-4 w-4 mr-2" />
                   Add Section
                 </Button>
@@ -1127,10 +1203,7 @@ export default function ClassesPage() {
                         <TableRow key={section.id}>
                           <TableCell>
                             <div>
-                              <div className="font-medium">{section.name}</div>
-                              <div className="text-sm text-muted-foreground">
-                                {section.displayName}
-                              </div>
+                              <div className="font-medium">Section {section.name}</div>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -1196,19 +1269,18 @@ export default function ClassesPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleViewSection(section)}>
                                   <EyeIcon className="h-4 w-4 mr-2" />
                                   View Details
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleEditSection(section)}>
                                   <EditIcon className="h-4 w-4 mr-2" />
                                   Edit Section
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <UsersIcon className="h-4 w-4 mr-2" />
-                                  Manage Students
-                                </DropdownMenuItem>
-                                <DropdownMenuItem className="text-red-600">
+                                <DropdownMenuItem
+                                  onClick={() => handleDeleteSection(section)}
+                                  className="text-red-600"
+                                >
                                   <TrashIcon className="h-4 w-4 mr-2" />
                                   Delete Section
                                 </DropdownMenuItem>
@@ -1881,6 +1953,376 @@ export default function ClassesPage() {
               </Button>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Section Dialog */}
+      <Dialog open={showAddSectionDialog} onOpenChange={setShowAddSectionDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Section</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            {addSectionError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-600">{addSectionError}</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="section-name">Section Name *</Label>
+              <Input
+                id="section-name"
+                value={addSectionForm.name}
+                onChange={e => setAddSectionForm({ ...addSectionForm, name: e.target.value })}
+                placeholder="e.g., A, B, C"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="section-capacity">Capacity</Label>
+              <Input
+                id="section-capacity"
+                type="number"
+                value={addSectionForm.capacity}
+                onChange={e => setAddSectionForm({ ...addSectionForm, capacity: parseInt(e.target.value) || 40 })}
+                min="1"
+                max="100"
+                placeholder="40"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="section-class">Class *</Label>
+              <Select
+                value={addSectionForm.classId}
+                onValueChange={value => setAddSectionForm({ ...addSectionForm, classId: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select class" />
+                </SelectTrigger>
+                <SelectContent>
+                  {classes.map(cls => (
+                    <SelectItem key={cls.id} value={cls.id}>
+                      {cls.name} ({cls.academicYear})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button variant="outline" onClick={() => setShowAddSectionDialog(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  // Validation
+                  if (!addSectionForm.name.trim()) {
+                    setAddSectionError("Section name is required");
+                    return;
+                  }
+                  if (!addSectionForm.classId) {
+                    setAddSectionError("Class is required");
+                    return;
+                  }
+                  setAddSectionError(null);
+                  try {
+                    const formData = new FormData();
+                    formData.append("name", addSectionForm.name.trim());
+                    formData.append("capacity", addSectionForm.capacity.toString());
+                    formData.append("classId", addSectionForm.classId);
+                    const result = await createSection(formData);
+                    if (result.success) {
+                      toast({
+                        title: "Section Created",
+                        description: result.message,
+                        variant: "default"
+                      });
+                      setShowAddSectionDialog(false);
+                      setAddSectionForm({ name: "", capacity: 40, classId: "" });
+                      await loadData();
+                    } else {
+                      toast({
+                        title: "Failed to Create Section",
+                        description: result.message,
+                        variant: "destructive"
+                      });
+                    }
+                  } catch (err) {
+                    toast({
+                      title: "Error",
+                      description: "An error occurred while creating section.",
+                      variant: "destructive"
+                    });
+                  }
+                }}
+              >
+                Add Section
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Section Dialog */}
+      <Dialog open={showEditSectionDialog} onOpenChange={setShowEditSectionDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Section</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6">
+            {editSectionError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-600">{editSectionError}</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="edit-section-name">Section Name *</Label>
+              <Input
+                id="edit-section-name"
+                value={editSectionForm.name}
+                onChange={e => setEditSectionForm({ ...editSectionForm, name: e.target.value })}
+                placeholder="e.g., A, B, C"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-section-capacity">Capacity</Label>
+              <Input
+                id="edit-section-capacity"
+                type="number"
+                value={editSectionForm.capacity}
+                onChange={e => setEditSectionForm({ ...editSectionForm, capacity: parseInt(e.target.value) || 40 })}
+                min="1"
+                max="100"
+                placeholder="40"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-section-class">Class *</Label>
+              <Select
+                value={editSectionForm.classId}
+                onValueChange={value => setEditSectionForm({ ...editSectionForm, classId: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select class" />
+                </SelectTrigger>
+                <SelectContent>
+                  {classes.map(cls => (
+                    <SelectItem key={cls.id} value={cls.id}>
+                      {cls.name} ({cls.academicYear})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2 pt-4 border-t">
+              <Button variant="outline" onClick={() => setShowEditSectionDialog(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  // Validation
+                  if (!editSectionForm.name.trim()) {
+                    setEditSectionError("Section name is required");
+                    return;
+                  }
+                  if (!editSectionForm.classId) {
+                    setEditSectionError("Class is required");
+                    return;
+                  }
+                  setEditSectionError(null);
+                  try {
+                    const formData = new FormData();
+                    formData.append("name", editSectionForm.name.trim());
+                    formData.append("capacity", editSectionForm.capacity.toString());
+                    // Only send classId if changed (optional, backend ignores it)
+                    formData.append("classId", editSectionForm.classId);
+                    const result = await updateSection(editSectionForm.id, formData);
+                    if (result.success) {
+                      toast({
+                        title: "Section Updated",
+                        description: result.message,
+                        variant: "default"
+                      });
+                      setShowEditSectionDialog(false);
+                      setEditSectionForm({ id: "", name: "", capacity: 40, classId: "" });
+                      await loadData();
+                    } else {
+                      toast({
+                        title: "Failed to Update Section",
+                        description: result.message,
+                        variant: "destructive"
+                      });
+                    }
+                  } catch (err) {
+                    toast({
+                      title: "Error",
+                      description: "An error occurred while updating section.",
+                      variant: "destructive"
+                    });
+                  }
+                }}
+              >
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Section Dialog */}
+      <Dialog open={showDeleteSectionDialog} onOpenChange={setShowDeleteSectionDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Section</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete
+              {" "}
+              <span className="font-semibold">
+                Section {selectedSection?.name}
+              </span>
+              ? This action cannot be undone.
+            </p>
+            {selectedSection && selectedSection.studentCount > 0 && (
+              <div className="p-3 bg-red-50 rounded-lg">
+                <p className="text-sm text-red-600 font-medium">
+                  Warning: This section has {selectedSection.studentCount} students enrolled.
+                </p>
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteSectionDialog(false);
+                  setSelectedSection(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleConfirmDeleteSection}
+              >
+                Delete Section
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* View Section Dialog */}
+      <Dialog open={showViewSectionDialog} onOpenChange={setShowViewSectionDialog}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Section Details</DialogTitle>
+          </DialogHeader>
+          {selectedSection && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Basic Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Section Name</Label>
+                      <p className="text-lg font-semibold">Section {selectedSection.name}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Display Name</Label>
+                      <p className="text-base">{selectedSection.displayName}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Capacity</Label>
+                      <p className="text-base">{selectedSection.capacity}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Status</Label>
+                      <p className="text-base">{selectedSection.status}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Class & Branch</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Class</Label>
+                      <p className="text-base font-semibold">{selectedSection.class.name}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Academic Year</Label>
+                      <p className="text-base">{selectedSection.class.academicYear}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Branch</Label>
+                      <p className="text-base">{selectedSection.class.branch}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Teacher</Label>
+                      <p className="text-base">{selectedSection.class.teacher}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Section Statistics</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-center p-4 bg-blue-50 rounded-lg">
+                      <div className="text-2xl font-bold text-blue-600">{selectedSection.studentCount}</div>
+                      <div className="text-sm text-muted-foreground">Students</div>
+                    </div>
+                    <div className="text-center p-4 bg-green-50 rounded-lg">
+                      <div className="text-2xl font-bold text-green-600">{selectedSection.capacity}</div>
+                      <div className="text-sm text-muted-foreground">Capacity</div>
+                    </div>
+                    <div className="text-center p-4 bg-purple-50 rounded-lg">
+                      <div className="text-2xl font-bold text-purple-600">{selectedSection.availableSlots}</div>
+                      <div className="text-sm text-muted-foreground">Available Slots</div>
+                    </div>
+                    <div className="text-center p-4 bg-orange-50 rounded-lg">
+                      <div className="text-2xl font-bold text-orange-600">{selectedSection.occupancyRate}%</div>
+                      <div className="text-sm text-muted-foreground">Occupancy</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              {/* Students List */}
+              {selectedSection.students && selectedSection.students.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Students</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {selectedSection.students.map((student) => (
+                        <div key={student.id} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                          <Avatar className="h-6 w-6">
+                            <AvatarFallback className="text-xs">
+                              {getInitials(student.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-sm font-medium">{student.name}</p>
+                            <p className="text-xs text-muted-foreground">Roll: {student.rollNumber}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button variant="outline" onClick={() => setShowViewSectionDialog(false)}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
