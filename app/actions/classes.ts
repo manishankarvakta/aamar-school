@@ -12,6 +12,7 @@ interface ClassFormData {
   academicYear: string;
   branchId: string;
   teacherId?: string;
+  scheduleId?: string;
   capacity?: number;
   description?: string;
   subjectIds?: string[];
@@ -42,6 +43,13 @@ interface ClassData {
     address: string | null;
     phone: string | null;
   } | null;
+  schedule?: {
+    id: string;
+    name: string;
+    startTime: string;
+    endTime: string;
+    periodDuration: number;
+  } | null;
   sections?: Array<{
     id: string;
     name: string;
@@ -69,10 +77,10 @@ export async function createClass(formData: ClassFormData): Promise<ClassResult>
     const session = await requireAuth();
     
     // Validate required fields
-    if (!formData.name || !formData.branchId || !formData.academicYear) {
+    if (!formData.name || !formData.branchId || !formData.academicYear || !formData.scheduleId) {
       return {
         success: false,
-        error: 'Name, branch, and academic year are required',
+        error: 'Name, branch, academic year, and schedule are required',
         message: 'Please fill in all required fields'
       };
     }
@@ -129,6 +137,22 @@ export async function createClass(formData: ClassFormData): Promise<ClassResult>
       }
     }
 
+    // Verify schedule belongs to the same aamarId
+    const schedule = await prisma.schoolSchedule.findFirst({
+      where: {
+        id: formData.scheduleId,
+        aamarId: session.aamarId,
+      },
+    });
+
+    if (!schedule) {
+      return {
+        success: false,
+        error: 'Invalid schedule',
+        message: 'The selected schedule is not valid',
+      };
+    }
+
     const newClass = await prisma.class.create({
       data: {
         aamarId: session.aamarId,
@@ -136,6 +160,7 @@ export async function createClass(formData: ClassFormData): Promise<ClassResult>
         branchId: formData.branchId,
         academicYear: formData.academicYear,
         teacherId: formData.teacherId,
+        scheduleId: formData.scheduleId,
       },
       include: {
         branch: true,
@@ -148,6 +173,7 @@ export async function createClass(formData: ClassFormData): Promise<ClassResult>
             },
           },
         },
+        schedule: true,
       },
     });
 
@@ -188,6 +214,7 @@ export async function getClasses(): Promise<ClassResult> {
             },
           },
         },
+        schedule: true,
         subjects: true,
         sections: {
           include: {
@@ -241,6 +268,18 @@ export async function getClasses(): Promise<ClassResult> {
         address: cls.branch.address,
         phone: cls.branch.phone,
       } : null,
+      schedule: cls.schedule ? {
+        id: cls.schedule.id,
+        name: cls.schedule.name,
+        startTime: cls.schedule.startTime,
+        endTime: cls.schedule.endTime,
+        periodDuration: cls.schedule.periodDuration,
+        breakDuration: cls.schedule.breakDuration,
+        lunchDuration: cls.schedule.lunchDuration,
+        breakAfterPeriod: cls.schedule.breakAfterPeriod,
+        lunchAfterPeriod: cls.schedule.lunchAfterPeriod,
+        weeklyHolidays: cls.schedule.weeklyHolidays,
+      } : null,
       sections: cls.sections.map(section => ({
         id: section.id,
         name: section.name,
@@ -291,6 +330,7 @@ export async function getClassById(id: string): Promise<ClassResult> {
             },
           },
         },
+        schedule: true,
         subjects: true,
         sections: {
           include: {
@@ -347,6 +387,13 @@ export async function getClassById(id: string): Promise<ClassResult> {
         name: classData.branch.name,
         address: classData.branch.address,
         phone: classData.branch.phone,
+      } : null,
+      schedule: classData.schedule ? {
+        id: classData.schedule.id,
+        name: classData.schedule.name,
+        startTime: classData.schedule.startTime,
+        endTime: classData.schedule.endTime,
+        periodDuration: classData.schedule.periodDuration,
       } : null,
       sections: classData.sections.map(section => ({
         id: section.id,

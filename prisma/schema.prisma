@@ -146,6 +146,7 @@ model School {
   vehicles  Vehicle[]
   exams     Exam[]
   accounts  Account[]
+  settings  Settings?
 }
 
 model Branch {
@@ -548,4 +549,15 @@ model Transaction {
   createdBy       User            @relation(fields: [createdById], references: [id])
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
+}
+
+model Settings {
+  id            String   @id @default(cuid())
+  aamarId       String
+  schoolId      String   @unique
+  school        School   @relation(fields: [schoolId], references: [id])
+  weeklySchedule Json?   // Stores the weekly schedule as JSON
+  subjectDuration Int?   // Global subject duration in minutes
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
