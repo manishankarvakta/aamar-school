@@ -48,31 +48,8 @@ import {
   BookOpenIcon,
   TrendingUpIcon,
   LoaderIcon,
-  SaveIcon,
-  XIcon,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-
-// DnD Kit imports
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import {
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 
 // Import actions
 import {
@@ -94,14 +71,6 @@ import {
   getSectionStats,
 } from "@/app/actions/sections";
 import { generateRollNumber } from "@/app/actions/admission";
-import {
-  getTimetables,
-  getTimetableStats,
-  createTimetable,
-  updateTimetable,
-  deleteTimetable,
-} from "@/app/actions/timetables";
-import { getSchoolSchedules } from "@/app/actions/school-schedule";
 
 interface ClassData {
   id: string;
@@ -127,20 +96,6 @@ interface ClassData {
     qualification: string | null;
     experience: number | null;
     subjects: string[];
-  } | null;
-  schedule?: {
-    id: string;
-    name: string;
-    startTime: string;
-    endTime: string;
-    periodDuration: number;
-    includeBreak: boolean;
-    breakDuration: number;
-    breakAfterPeriod: number;
-    includeLunch: boolean;
-    lunchDuration: number;
-    lunchAfterPeriod: number;
-    weeklyHolidays?: number[];
   } | null;
   sections?: Array<{
     id: string;
@@ -197,11 +152,6 @@ interface SectionData {
     teacher: string;
   };
   status: string;
-  students?: Array<{
-    id: string;
-    name: string;
-    rollNumber: string;
-  }>;
 }
 
 interface StatsData {
@@ -226,601 +176,6 @@ interface StudentData {
   };
 }
 
-interface TimetableData {
-  id: string;
-  aamarId: string;
-  dayOfWeek: number;
-  startTime: string;
-  endTime: string;
-  classId: string;
-  subjectId: string;
-  class?: {
-    id: string;
-    name: string;
-    academicYear: string;
-    branch: {
-      name: string;
-    };
-  };
-  subject?: {
-    id: string;
-    name: string;
-    code: string;
-  };
-}
-
-interface TimetableStatsData {
-  totalTimetables: number;
-  totalClasses: number;
-  totalSubjects: number;
-  averagePeriodsPerDay: number;
-}
-
-// Client-side helper functions to avoid infinite loops
-const getDayName = (dayOfWeek: number): string => {
-  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-  return days[dayOfWeek] || "Unknown";
-};
-
-const formatTime = (timeString: string): string => {
-  const date = new Date(timeString);
-  return date.toLocaleTimeString('en-US', { 
-    hour: '2-digit', 
-    minute: '2-digit',
-    hour12: true 
-  });
-};
-
-// Helper functions for period calculations
-const calculateTotalPeriods = (schedule: { startTime: string; endTime: string; periodDuration: number; breakDuration: number; lunchDuration: number; breakAfterPeriod: number; lunchAfterPeriod: number }) => {
-  const startTime = new Date(`2000-01-01T${schedule.startTime}:00`);
-  const endTime = new Date(`2000-01-01T${schedule.endTime}:00`);
-  const totalMinutes = (endTime.getTime() - startTime.getTime()) / (1000 * 60);
-  const totalBreakTime = schedule.breakDuration + schedule.lunchDuration;
-  const availableTime = totalMinutes - totalBreakTime;
-  return Math.floor(availableTime / schedule.periodDuration);
-};
-
-const calculatePeriodStartTime = (schedule: { startTime: string; endTime: string; periodDuration: number; breakDuration: number; lunchDuration: number; breakAfterPeriod: number; lunchAfterPeriod: number }, periodNumber: number): string => {
-  const startTime = new Date(`2000-01-01T${schedule.startTime}:00`);
-  const currentTime = new Date(startTime);
-  
-  for (let i = 1; i < periodNumber; i++) {
-    currentTime.setMinutes(currentTime.getMinutes() + schedule.periodDuration);
-    
-    if (i === schedule.breakAfterPeriod) {
-      currentTime.setMinutes(currentTime.getMinutes() + schedule.breakDuration);
-    }
-    if (i === schedule.lunchAfterPeriod) {
-      currentTime.setMinutes(currentTime.getMinutes() + schedule.lunchDuration);
-    }
-  }
-  
-  return currentTime.toTimeString().slice(0, 5);
-};
-
-const calculatePeriodEndTime = (schedule: { startTime: string; endTime: string; periodDuration: number; breakDuration: number; lunchDuration: number; breakAfterPeriod: number; lunchAfterPeriod: number }, periodNumber: number): string => {
-  const startTime = calculatePeriodStartTime(schedule, periodNumber);
-  const startDate = new Date(`2000-01-01T${startTime}:00`);
-  startDate.setMinutes(startDate.getMinutes() + schedule.periodDuration);
-  return startDate.toTimeString().slice(0, 5);
-};
-
-// Helper functions for timetable editor
-const getWorkingDays = (schedule: any) => {
-  const allDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const holidays = schedule?.weeklyHolidays || [];
-  return allDays.filter((_, index) => !holidays.includes(index));
-};
-
-const getPeriodCount = (schedule: any) => {
-  if (!schedule) return 0;
-  
-  const startTime = new Date(`2000-01-01T${schedule.startTime}:00`);
-  const endTime = new Date(`2000-01-01T${schedule.endTime}:00`);
-  const totalMinutes = (endTime.getTime() - startTime.getTime()) / (1000 * 60);
-  
-  // Calculate total break and lunch time (only if included)
-  let totalBreakTime = 0;
-  if (schedule.includeBreak !== false) {
-    totalBreakTime += schedule.breakDuration;
-  }
-  if (schedule.includeLunch !== false) {
-    totalBreakTime += schedule.lunchDuration;
-  }
-  
-  const availableTime = totalMinutes - totalBreakTime;
-  return Math.floor(availableTime / schedule.periodDuration);
-};
-
-const initializeTimetableGrid = (classData: ClassData, subjects: SubjectData[], timetables: TimetableData[]) => {
-  const workingDays = getWorkingDays(classData.schedule);
-  const periodCount = getPeriodCount(classData.schedule);
-  const classSubjects = subjects.filter(s => s.class?.id === classData.id);
-  
-  // Initialize grid
-  const grid: Record<string, any> = {};
-  
-  // Create empty grid
-  workingDays.forEach((day, dayIndex) => {
-    for (let period = 1; period <= periodCount; period++) {
-      const key = `${dayIndex}-${period}`;
-      grid[key] = null;
-    }
-  });
-  
-  // Fill with existing timetables
-  timetables
-    .filter(t => t.classId === classData.id)
-    .forEach(timetable => {
-      const dayName = getDayName(timetable.dayOfWeek);
-      const dayIndex = workingDays.indexOf(dayName);
-      if (dayIndex !== -1) {
-        // Find which period this timetable belongs to based on start time
-        const startTime = new Date(`2000-01-01T${timetable.startTime}:00`);
-        const scheduleStart = new Date(`2000-01-01T${classData.schedule?.startTime}:00`);
-        const periodDuration = classData.schedule?.periodDuration || 45;
-        
-        let period = 1;
-        let currentTime = new Date(scheduleStart);
-        
-        for (let p = 1; p <= periodCount; p++) {
-          const periodEnd = new Date(currentTime);
-          periodEnd.setMinutes(periodEnd.getMinutes() + periodDuration);
-          
-          if (startTime >= currentTime && startTime < periodEnd) {
-            period = p;
-            break;
-          }
-          
-          currentTime = periodEnd;
-          
-          // Add break time if applicable
-          if (classData.schedule?.includeBreak !== false && p === classData.schedule?.breakAfterPeriod) {
-            currentTime.setMinutes(currentTime.getMinutes() + (classData.schedule?.breakDuration || 0));
-          }
-          
-          // Add lunch time if applicable
-          if (classData.schedule?.includeLunch !== false && p === classData.schedule?.lunchAfterPeriod) {
-            currentTime.setMinutes(currentTime.getMinutes() + (classData.schedule?.lunchDuration || 0));
-          }
-        }
-        
-        const key = `${dayIndex}-${period}`;
-        grid[key] = {
-          id: timetable.id,
-          subjectId: timetable.subjectId,
-          subjectName: timetable.subject?.name || '',
-          subjectCode: timetable.subject?.code || '',
-          startTime: timetable.startTime,
-          endTime: timetable.endTime,
-        };
-      }
-    });
-  
-  return grid;
-};
-
-const getAvailableSubjectsForClass = (classData: ClassData, subjects: SubjectData[], timetables: TimetableData[]) => {
-  const classSubjects = subjects.filter(s => s.class?.id === classData.id);
-  const assignedSubjectIds = new Set(
-    timetables
-      .filter(t => t.classId === classData.id)
-      .map(t => t.subjectId)
-  );
-  
-  return classSubjects.filter(subject => !assignedSubjectIds.has(subject.id));
-};
-
-// Draggable Subject Component
-const DraggableSubject = ({ subject, isAssigned = false }: { subject: SubjectData; isAssigned?: boolean }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: subject.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className={`p-2 border rounded text-sm cursor-move hover:bg-blue-200 transition-colors ${
-        isAssigned 
-          ? 'bg-green-100 border-green-300 text-green-900' 
-          : 'bg-blue-100 border-blue-300 text-blue-900'
-      }`}
-    >
-      <div className="font-medium">{subject.name}</div>
-      <div className="text-xs opacity-75">{subject.code}</div>
-    </div>
-  );
-};
-
-// Droppable Cell Component
-const DroppableCell = ({ 
-  dayIndex, 
-  period, 
-  content, 
-  isEditMode, 
-  onDrop,
-  onRemove,
-  isRowFillCell = false,
-  subjects = []
-}: { 
-  dayIndex: number; 
-  period: number; 
-  content: any; 
-  isEditMode: boolean;
-  onDrop?: (subjectId: string) => void;
-  onRemove?: () => void;
-  isRowFillCell?: boolean;
-  subjects?: SubjectData[];
-}) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isOver,
-  } = useSortable({ 
-    id: `${dayIndex}-${period}`,
-    data: {
-      accepts: ['subject'],
-    }
-  });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    backgroundColor: isOver ? '#f0f9ff' : 'transparent',
-    border: isOver ? '2px dashed #3b82f6' : '1px solid #e5e7eb',
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      className={`p-2 rounded min-h-[60px] flex items-center justify-center relative ${
-        isEditMode ? 'cursor-pointer hover:bg-blue-50' : ''
-      } ${isRowFillCell ? 'bg-yellow-50 border-yellow-300' : ''}`}
-    >
-      {content ? (
-        <div className="text-center w-full">
-          <DraggableSubject subject={subjects.find(s => s.id === content.subjectId)!} isAssigned={true} />
-          {isEditMode && onRemove && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute top-1 right-1 h-4 w-4 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove();
-              }}
-            >
-              <XIcon className="h-3 w-3" />
-            </Button>
-          )}
-        </div>
-      ) : (
-        <div className="text-xs text-gray-400 text-center">
-          {isRowFillCell ? 'Drop to fill row' : (isEditMode ? 'Drop subject here' : 'Empty')}
-        </div>
-      )}
-    </div>
-  );
-};
-
-// Timetable Card Component
-const TimetableCard = ({ classData, subjects, timetables }: { 
-  classData: ClassData; 
-  subjects: SubjectData[]; 
-  timetables: TimetableData[]; 
-}) => {
-  const [timetableGrid, setTimetableGrid] = useState<Record<string, any>>({});
-  const [isSaving, setIsSaving] = useState(false);
-  const { toast } = useToast();
-  
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  const classSubjects = subjects.filter(s => s.class?.id === classData.id);
-
-  // Initialize grid for this class
-  useEffect(() => {
-    const grid = initializeTimetableGrid(classData, subjects, timetables);
-    setTimetableGrid(grid);
-  }, [classData, subjects, timetables]);
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    
-    if (!over) return;
-    
-    const draggedSubjectId = active.id as string;
-    const targetCellKey = over.id as string;
-    
-    // Find the subject being dragged
-    const subject = subjects.find(s => s.id === draggedSubjectId);
-    if (!subject) return;
-    
-    console.log('Drag end:', { draggedSubjectId, targetCellKey, subject: subject.name });
-    
-    // Check if this is a row fill cell (special cell at the end of each row)
-    const isRowFillCell = targetCellKey.startsWith('fill-');
-    
-    if (isRowFillCell) {
-      // Fill the entire row with this subject
-      const periodNumber = parseInt(targetCellKey.split('-')[1]);
-      const workingDays = getWorkingDays(classData.schedule);
-      
-      setTimetableGrid(prev => {
-        const newGrid = { ...prev };
-        
-        // Fill all periods for this row (period number)
-        for (let dayIndex = 0; dayIndex < workingDays.length; dayIndex++) {
-          const cellKey = `${dayIndex}-${periodNumber}`;
-          newGrid[cellKey] = {
-            subjectId: subject.id,
-            subjectName: subject.name,
-            subjectCode: subject.code,
-            startTime: '', // Will be calculated when saving
-            endTime: '', // Will be calculated when saving
-          };
-        }
-        
-        return newGrid;
-      });
-    } else {
-      // Regular cell assignment
-      setTimetableGrid(prev => {
-        const newGrid = { ...prev };
-        newGrid[targetCellKey] = {
-          subjectId: subject.id,
-          subjectName: subject.name,
-          subjectCode: subject.code,
-          startTime: '', // Will be calculated when saving
-          endTime: '', // Will be calculated when saving
-        };
-        return newGrid;
-      });
-    }
-  };
-
-  const handleRemoveSubject = (cellKey: string) => {
-    setTimetableGrid(prev => {
-      const newGrid = { ...prev };
-      delete newGrid[cellKey];
-      return newGrid;
-    });
-  };
-
-  const handleSaveTimetable = async () => {
-    if (!classData.schedule) return;
-    
-    setIsSaving(true);
-    try {
-      // Create timetables for all assignments in the grid
-      const newTimetables = [];
-      const workingDays = getWorkingDays(classData.schedule);
-      const periodCount = getPeriodCount(classData.schedule);
-      
-      for (const [key, value] of Object.entries(timetableGrid)) {
-        if (value && value.subjectId) {
-          const [dayIndex, period] = key.split('-').map(Number);
-          const dayName = workingDays[dayIndex];
-          const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].indexOf(dayName);
-          
-          // Calculate start and end times for this period
-          const startTime = calculatePeriodStartTime(classData.schedule, period);
-          const endTime = calculatePeriodEndTime(classData.schedule, period);
-          
-          newTimetables.push({
-            dayOfWeek,
-            startTime,
-            endTime,
-            classId: classData.id,
-            subjectId: value.subjectId,
-          });
-        }
-      }
-      
-      // Save all timetables
-      for (const timetable of newTimetables) {
-        const result = await createTimetable(timetable);
-        if (!result.success) {
-          throw new Error(`Failed to create timetable: ${result.error}`);
-        }
-      }
-      
-      toast({
-        title: "Success",
-        description: "Timetable saved successfully",
-      });
-      
-    } catch (error) {
-      console.error('Error saving timetable:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save timetable",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-100 rounded-lg">
-              <BookOpenIcon className="h-6 w-6 text-blue-600" />
-            </div>
-            <div>
-              <CardTitle className="text-xl">{classData.name}</CardTitle>
-              <p className="text-sm text-muted-foreground">
-                {classData.academicYear} • {classData.branch?.name} • {classData.schedule?.name || 'No Schedule'}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">
-              {Object.values(timetableGrid).filter(Boolean).length} periods scheduled
-            </Badge>
-            <Badge variant="secondary">
-              {classSubjects.length} subjects
-            </Badge>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="space-y-6">
-            {/* Available Subjects */}
-            <div>
-              <h4 className="font-medium mb-3">Available Subjects (Drag to assign)</h4>
-              {classSubjects.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  <SortableContext items={classSubjects.map(s => s.id)}>
-                    {classSubjects.map((subject) => (
-                      <DraggableSubject key={subject.id} subject={subject} />
-                    ))}
-                  </SortableContext>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No subjects assigned to this class</p>
-              )}
-            </div>
-
-            {/* Assigned Subjects (Draggable) */}
-            <div>
-              <h4 className="font-medium mb-3">Assigned Subjects (Drag to move)</h4>
-              {Object.values(timetableGrid).filter(Boolean).length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  <SortableContext items={Object.entries(timetableGrid).filter(([key, value]) => value).map(([key, content]: [string, any]) => `${key}-${content.subjectId}`)}>
-                    {Object.entries(timetableGrid)
-                      .filter(([key, value]) => value)
-                      .map(([key, content]: [string, any]) => {
-                        const subject = subjects.find(s => s.id === content.subjectId);
-                        return subject ? (
-                          <DraggableSubject key={`${key}-${content.subjectId}`} subject={subject} isAssigned={true} />
-                        ) : null;
-                      })}
-                  </SortableContext>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No subjects assigned to periods yet</p>
-              )}
-            </div>
-
-            {/* Timetable Grid */}
-            <div>
-              <h4 className="font-medium mb-3">Weekly Timetable</h4>
-              <div className="overflow-x-auto">
-                <div className="min-w-max">
-                  <div className="grid gap-2" style={{
-                    gridTemplateColumns: `auto repeat(${getWorkingDays(classData.schedule).length + 1}, 1fr)`
-                  }}>
-                    {/* Header Row */}
-                    <div className="p-2 font-medium text-sm bg-gray-50 rounded">Period</div>
-                    {getWorkingDays(classData.schedule).map((day, dayIndex) => (
-                      <div key={day} className="p-2 font-medium text-sm bg-gray-50 rounded text-center">
-                        {day}
-                      </div>
-                    ))}
-                    <div className="p-2 font-medium text-sm bg-yellow-100 rounded text-center text-yellow-800">
-                      Fill Row
-                    </div>
-                    
-                    {/* Period Rows */}
-                    {Array.from({ length: getPeriodCount(classData.schedule) }, (_, period) => (
-                      <div key={period} className="contents">
-                        <div className="p-2 font-medium text-sm bg-gray-50 rounded text-center">
-                          Period {period + 1}
-                        </div>
-                        {getWorkingDays(classData.schedule).map((day, dayIndex) => {
-                          const key = `${dayIndex}-${period + 1}`;
-                          const content = timetableGrid[key];
-                          return (
-                            <DroppableCell
-                              key={key}
-                              dayIndex={dayIndex}
-                              period={period + 1}
-                              content={content}
-                              isEditMode={true}
-                              onRemove={() => handleRemoveSubject(key)}
-                              subjects={subjects}
-                            />
-                          );
-                        })}
-                        {/* Row Fill Cell */}
-                        <DroppableCell
-                          key={`fill-${period + 1}`}
-                          dayIndex={period + 1}
-                          period={0}
-                          content={null}
-                          isEditMode={true}
-                          isRowFillCell={true}
-                          subjects={subjects}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  const grid = initializeTimetableGrid(classData, subjects, timetables);
-                  setTimetableGrid(grid);
-                }}
-                disabled={isSaving}
-              >
-                <EditIcon className="h-4 w-4 mr-2" />
-                Refresh Grid
-              </Button>
-              <Button 
-                onClick={handleSaveTimetable}
-                disabled={isSaving}
-              >
-                <SaveIcon className="h-4 w-4 mr-2" />
-                {isSaving ? 'Saving...' : 'Save Timetable'}
-              </Button>
-            </div>
-          </div>
-        </DndContext>
-      </CardContent>
-    </Card>
-  );
-};
-
 export default function ClassesPage() {
   const [selectedTab, setSelectedTab] = useState("classes");
   const [searchTerm, setSearchTerm] = useState("");
@@ -840,9 +195,6 @@ export default function ClassesPage() {
   const [sectionStats, setSectionStats] = useState<any>(null);
   const [teachers, setTeachers] = useState<any[]>([]);
   const [allBranches, setAllBranches] = useState<any[]>([]);
-  const [timetables, setTimetables] = useState<TimetableData[]>([]);
-  const [timetableStats, setTimetableStats] = useState<TimetableStatsData | null>(null);
-  const [schedules, setSchedules] = useState<any[]>([]);
 
   // Section-specific states
   const [sectionSearchTerm, setSectionSearchTerm] = useState("");
@@ -880,26 +232,6 @@ export default function ClassesPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showTimetableDialog, setShowTimetableDialog] = useState(false);
 
-  // Drag & Drop Timetable Editor states
-  const [isTimetableEditMode, setIsTimetableEditMode] = useState(false);
-  const [editingClassId, setEditingClassId] = useState<string | null>(null);
-  const [timetableGrid, setTimetableGrid] = useState<Record<string, any>>({});
-  const [availableSubjects, setAvailableSubjects] = useState<SubjectData[]>([]);
-  const [isSavingTimetable, setIsSavingTimetable] = useState(false);
-
-  // Add Timetable form states
-  const [addTimetableForm, setAddTimetableForm] = useState({
-    classId: "",
-    subjectId: "",
-    dayOfWeek: 1,
-    startTime: "",
-    endTime: "",
-    periodNumber: 1,
-  });
-  const [addTimetableError, setAddTimetableError] = useState<string | null>(null);
-  const [isAddingTimetable, setIsAddingTimetable] = useState(false);
-  const [showAddTimetableDialog, setShowAddTimetableDialog] = useState(false);
-
   // Form states
   const [editForm, setEditForm] = useState({
     name: "",
@@ -913,33 +245,14 @@ export default function ClassesPage() {
     academicYear: "",
     branchId: "",
     teacherId: "",
-    scheduleId: "",
     capacity: 40,
   });
 
   const { toast } = useToast();
 
-  // Timetable-specific states
-  const [timetableSearchTerm, setTimetableSearchTerm] = useState("");
-  const [selectedTimetableClass, setSelectedTimetableClass] = useState("All Classes");
-  const [selectedTimetableBranch, setSelectedTimetableBranch] = useState("All Branches");
-
   useEffect(() => {
     loadData();
   }, []);
-
-  // Initialize timetable grid when classes data is available
-  useEffect(() => {
-    if (classes.length > 0 && subjects.length > 0 && timetables.length > 0) {
-      // Initialize grid for the first class by default
-      const firstClass = classes[0];
-      if (firstClass) {
-        const grid = initializeTimetableGrid(firstClass, subjects, timetables);
-        setTimetableGrid(grid);
-        setEditingClassId(firstClass.id);
-      }
-    }
-  }, [classes, subjects, timetables]);
 
   const loadData = async (isReload = false) => {
     try {
@@ -961,9 +274,6 @@ export default function ClassesPage() {
         sectionStatsResult,
         teachersResult,
         branchesResult,
-        timetablesResult,
-        timetableStatsResult,
-        schedulesResult,
       ] = await Promise.all([
         getClasses(),
         getClassStats(),
@@ -973,9 +283,6 @@ export default function ClassesPage() {
         getSectionStats(),
         getTeachers(),
         getBranchesByAamarId(),
-        getTimetables(),
-        getTimetableStats(),
-        getSchoolSchedules(),
       ]);
 
       console.log("📊 API Results:", {
@@ -987,8 +294,6 @@ export default function ClassesPage() {
         sectionStats: sectionStatsResult,
         teachers: teachersResult,
         branchesResult,
-        timetables: timetablesResult,
-        timetableStats: timetableStatsResult,
       });
 
       if (classesResult.success) {
@@ -1045,39 +350,6 @@ export default function ClassesPage() {
       } else {
         console.warn("Failed to load branches:", branchesResult.message);
       }
-
-      if (timetablesResult.success) {
-        const timetablesData = (timetablesResult.data as TimetableData[]) || [];
-        console.log("✅ Timetables data loaded:", {
-          count: timetablesData.length,
-          timetables: timetablesData.slice(0, 3).map(t => ({ 
-            id: t.id, 
-            class: t.class?.name, 
-            subject: t.subject?.name,
-            day: getDayName(t.dayOfWeek),
-            time: `${formatTime(t.startTime)} - ${formatTime(t.endTime)}`
-          }))
-        });
-        setTimetables(timetablesData);
-      } else {
-        console.warn("Failed to load timetables:", timetablesResult.error);
-      }
-
-      if (timetableStatsResult.success) {
-        const statsData = timetableStatsResult.data as TimetableStatsData;
-        console.log("✅ Timetable stats loaded:", statsData);
-        setTimetableStats(statsData);
-      } else {
-        console.warn("Failed to load timetable stats:", timetableStatsResult.error);
-      }
-
-      if (schedulesResult.success) {
-        const schedulesData = schedulesResult.data || [];
-        console.log("✅ Schedules loaded:", schedulesData);
-        setSchedules(schedulesData);
-      } else {
-        console.warn("Failed to load schedules:", schedulesResult.error);
-      }
     } catch (error) {
       console.error("Error loading data:", error);
       setError(error instanceof Error ? error.message : "Failed to load data");
@@ -1089,8 +361,6 @@ export default function ClassesPage() {
       setSections([] as SectionData[]);
       setSectionStats(null);
       setTeachers([] as any[]);
-      setTimetables([] as TimetableData[]);
-      setTimetableStats(null);
     } finally {
       if (isReload) {
         setReloading(false);
@@ -1212,39 +482,6 @@ export default function ClassesPage() {
     sectionSearchTerm,
     selectedSectionClass,
     selectedSectionBranch,
-  });
-
-  // Timetable-specific data
-  const timetableClasses = [
-    "All Classes",
-    ...Array.from(new Set(timetables.map((timetable) => timetable.class?.name).filter(Boolean) as string[])),
-  ];
-  const timetableBranches = [
-    "All Branches",
-    ...Array.from(new Set(timetables.map((timetable) => timetable.class?.branch?.name).filter(Boolean) as string[])),
-  ];
-
-  const filteredTimetables = timetables.filter((timetable) => {
-    const matchesSearch =
-      timetable.class?.name?.toLowerCase().includes(timetableSearchTerm.toLowerCase()) ||
-      timetable.subject?.name?.toLowerCase().includes(timetableSearchTerm.toLowerCase()) ||
-      timetable.subject?.code?.toLowerCase().includes(timetableSearchTerm.toLowerCase()) ||
-      getDayName(timetable.dayOfWeek).toLowerCase().includes(timetableSearchTerm.toLowerCase());
-    const matchesClass =
-      selectedTimetableClass === "All Classes" ||
-      timetable.class?.name === selectedTimetableClass;
-    const matchesBranch =
-      selectedTimetableBranch === "All Branches" ||
-      timetable.class?.branch?.name === selectedTimetableBranch;
-    return matchesSearch && matchesClass && matchesBranch;
-  });
-
-  console.log("Filtered timetables:", {
-    totalTimetables: timetables.length,
-    filteredTimetables: filteredTimetables.length,
-    timetableSearchTerm,
-    selectedTimetableClass,
-    selectedTimetableBranch,
   });
 
   const getInitials = (name: string) => {
@@ -1486,11 +723,6 @@ export default function ClassesPage() {
       return;
     }
 
-    if (!addForm.scheduleId) {
-      setError("School schedule is required");
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
@@ -1499,7 +731,6 @@ export default function ClassesPage() {
         name: addForm.name.trim(),
         academicYear: addForm.academicYear.trim(),
         branchId: addForm.branchId,
-        scheduleId: addForm.scheduleId,
       };
 
       // Only include teacherId if it has a value
@@ -1517,7 +748,6 @@ export default function ClassesPage() {
           academicYear: "",
           branchId: "",
           teacherId: "",
-          scheduleId: "",
           capacity: 40,
         });
         
@@ -1693,237 +923,6 @@ export default function ClassesPage() {
       setSelectedStudentIds([]);
       setTargetSectionId("");
       await loadData();
-    }
-  };
-
-  const handleAddTimetable = async () => {
-    // Validation
-    if (!addTimetableForm.classId) {
-      setAddTimetableError("Class is required");
-      return;
-    }
-    if (!addTimetableForm.subjectId) {
-      setAddTimetableError("Subject is required");
-      return;
-    }
-    if (!addTimetableForm.startTime || !addTimetableForm.endTime) {
-      setAddTimetableError("Start and end times are required");
-      return;
-    }
-
-    setAddTimetableError(null);
-    try {
-      // Create proper time strings
-      const today = new Date();
-      const startTime = new Date(today);
-      const [startHours, startMinutes] = addTimetableForm.startTime.split(':').map(Number);
-      startTime.setHours(startHours, startMinutes, 0, 0);
-
-      const endTime = new Date(today);
-      const [endHours, endMinutes] = addTimetableForm.endTime.split(':').map(Number);
-      endTime.setHours(endHours, endMinutes, 0, 0);
-
-      const result = await createTimetable({
-        dayOfWeek: addTimetableForm.dayOfWeek,
-        startTime: startTime.toISOString(),
-        endTime: endTime.toISOString(),
-        classId: addTimetableForm.classId,
-        subjectId: addTimetableForm.subjectId,
-      });
-
-      if (result.success) {
-        toast({
-          title: "Timetable Created",
-          description: result.message,
-          variant: "default"
-        });
-        setShowAddTimetableDialog(false);
-        setAddTimetableForm({
-          dayOfWeek: 1,
-          startTime: "08:00",
-          endTime: "09:00",
-          classId: "",
-          subjectId: "",
-          periodNumber: 1
-        });
-        await loadData();
-      } else {
-        toast({
-          title: "Failed to Create Timetable",
-          description: result.error,
-          variant: "destructive"
-        });
-      }
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "An error occurred while creating timetable.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  // Drag & Drop handlers
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    
-    if (!over || !editingClassId) return;
-    
-    const draggedSubjectId = active.id as string;
-    const targetCellKey = over.id as string;
-    
-    // Find the subject being dragged
-    const subject = subjects.find(s => s.id === draggedSubjectId);
-    if (!subject) return;
-    
-    console.log('Drag end:', { draggedSubjectId, targetCellKey, subject: subject.name });
-    
-    // Check if this is a row fill cell (special cell at the end of each row)
-    const isRowFillCell = targetCellKey.startsWith('fill-');
-    
-    if (isRowFillCell) {
-      // Fill the entire row with this subject
-      const periodNumber = parseInt(targetCellKey.split('-')[1]);
-      const classData = classes.find(c => c.id === editingClassId);
-      if (!classData?.schedule) return;
-      
-      const workingDays = getWorkingDays(classData.schedule);
-      
-      setTimetableGrid(prev => {
-        const newGrid = { ...prev };
-        
-        // Fill all periods for this row (period number)
-        for (let dayIndex = 0; dayIndex < workingDays.length; dayIndex++) {
-          const cellKey = `${dayIndex}-${periodNumber}`;
-          newGrid[cellKey] = {
-            subjectId: subject.id,
-            subjectName: subject.name,
-            subjectCode: subject.code,
-            startTime: '', // Will be calculated when saving
-            endTime: '', // Will be calculated when saving
-          };
-        }
-        
-        return newGrid;
-      });
-    } else {
-      // Regular cell assignment
-      setTimetableGrid(prev => {
-        const newGrid = { ...prev };
-        newGrid[targetCellKey] = {
-          subjectId: subject.id,
-          subjectName: subject.name,
-          subjectCode: subject.code,
-          startTime: '', // Will be calculated when saving
-          endTime: '', // Will be calculated when saving
-        };
-        return newGrid;
-      });
-    }
-  };
-
-  const handleRemoveSubject = (cellKey: string) => {
-    setTimetableGrid(prev => {
-      const newGrid = { ...prev };
-      delete newGrid[cellKey];
-      return newGrid;
-    });
-  };
-
-  // Timetable editor functions
-  const handleStartTimetableEdit = (classData: ClassData) => {
-    setEditingClassId(classData.id);
-    setIsTimetableEditMode(true);
-    
-    // Initialize grid with existing timetables
-    const grid = initializeTimetableGrid(classData, subjects, timetables);
-    setTimetableGrid(grid);
-    
-    // Set available subjects (all subjects for this class)
-    const classSubjects = subjects.filter(s => s.class?.id === classData.id);
-    setAvailableSubjects(classSubjects);
-  };
-
-  const handleCancelTimetableEdit = () => {
-    setIsTimetableEditMode(false);
-    setEditingClassId(null);
-    setTimetableGrid({});
-    setAvailableSubjects([]);
-  };
-
-  const handleSaveTimetable = async () => {
-    if (!editingClassId) return;
-    
-    setIsSavingTimetable(true);
-    try {
-      const classData = classes.find(c => c.id === editingClassId);
-      if (!classData || !classData.schedule) {
-        toast({
-          title: "Error",
-          description: "Class schedule not found",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      // Create timetables for all assignments in the grid
-      const newTimetables = [];
-      const workingDays = getWorkingDays(classData.schedule);
-      const periodCount = getPeriodCount(classData.schedule);
-      
-      for (const [key, value] of Object.entries(timetableGrid)) {
-        if (value && value.subjectId) {
-          const [dayIndex, period] = key.split('-').map(Number);
-          const dayName = workingDays[dayIndex];
-          const dayOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].indexOf(dayName);
-          
-          // Calculate start and end times for this period
-          const startTime = calculatePeriodStartTime(classData.schedule, period);
-          const endTime = calculatePeriodEndTime(classData.schedule, period);
-          
-          newTimetables.push({
-            dayOfWeek,
-            startTime,
-            endTime,
-            classId: editingClassId,
-            subjectId: value.subjectId,
-          });
-        }
-      }
-      
-      // Save all timetables
-      for (const timetable of newTimetables) {
-        const result = await createTimetable(timetable);
-        if (!result.success) {
-          throw new Error(`Failed to create timetable: ${result.error}`);
-        }
-      }
-      
-      toast({
-        title: "Success",
-        description: "Timetable saved successfully",
-      });
-      
-      // Reload data and exit edit mode
-      await loadData(true);
-      handleCancelTimetableEdit();
-      
-    } catch (error) {
-      console.error('Error saving timetable:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save timetable",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSavingTimetable(false);
     }
   };
 
@@ -2127,10 +1126,10 @@ export default function ClassesPage() {
                           Edit Class
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => handleViewTimetable(cls)}
+                          onClick={() => handleManageStudents(cls)}
                         >
-                          <CalendarIcon className="h-4 w-4 mr-2" />
-                          View Timetable
+                          <UsersIcon className="h-4 w-4 mr-2" />
+                          Manage Students
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => handleViewTimetable(cls)}
@@ -2377,62 +1376,6 @@ export default function ClassesPage() {
         </TabsContent>
 
         <TabsContent value="timetables" className="space-y-6">
-          {/* Timetable Statistics Cards */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Total Timetables
-                </CardTitle>
-                <CalendarIcon className="h-4 w-4 text-blue-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {timetableStats?.totalTimetables?.toString() || timetables.length.toString()}
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Classes with Timetables
-                </CardTitle>
-                <BookOpenIcon className="h-4 w-4 text-green-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {timetableStats?.totalClasses?.toString() || "0"}
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Subjects Scheduled
-                </CardTitle>
-                <TrendingUpIcon className="h-4 w-4 text-purple-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {timetableStats?.totalSubjects?.toString() || "0"}
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Avg Periods/Day
-                </CardTitle>
-                <UsersIcon className="h-4 w-4 text-orange-600" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {timetableStats?.averagePeriodsPerDay?.toString() || "0"}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
           {/* Timetables Tab Filters */}
           <Card>
             <CardContent className="p-4">
@@ -2441,103 +1384,48 @@ export default function ClassesPage() {
                   <div className="relative">
                     <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Search classes..."
-                      value={timetableSearchTerm}
-                      onChange={(e) => setTimetableSearchTerm(e.target.value)}
+                      placeholder="Search timetables..."
                       className="pl-10"
                     />
                   </div>
                 </div>
-                <Select
-                  value={selectedTimetableClass}
-                  onValueChange={setSelectedTimetableClass}
-                >
+                <Select>
                   <SelectTrigger className="w-[140px]">
                     <SelectValue placeholder="Class" />
                   </SelectTrigger>
                   <SelectContent>
-                    {timetableClasses.map((className) => (
-                      <SelectItem key={className} value={className || ""}>
-                        {className}
+                    {grades.slice(1).map((grade) => (
+                      <SelectItem key={grade} value={grade}>
+                        {grade}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <Select
-                  value={selectedTimetableBranch}
-                  onValueChange={setSelectedTimetableBranch}
-                >
+                <Select>
                   <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Branch" />
+                    <SelectValue placeholder="Day" />
                   </SelectTrigger>
                   <SelectContent>
-                    {timetableBranches.map((branch) => (
-                      <SelectItem key={branch} value={branch || ""}>
-                        {branch}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="monday">Monday</SelectItem>
+                    <SelectItem value="tuesday">Tuesday</SelectItem>
+                    <SelectItem value="wednesday">Wednesday</SelectItem>
+                    <SelectItem value="thursday">Thursday</SelectItem>
+                    <SelectItem value="friday">Friday</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" size="sm" onClick={() => setShowAddTimetableDialog(true)}>
+                <Button variant="outline" size="sm">
                   <PlusIcon className="h-4 w-4 mr-2" />
-                  Add Timetable
+                  Create Timetable
                 </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* Visual Timetable Management */}
-          <div className="space-y-6">
-            {classes
-              .filter(cls => {
-                const matchesSearch = cls.name.toLowerCase().includes(timetableSearchTerm.toLowerCase()) ||
-                  cls.branch?.name.toLowerCase().includes(timetableSearchTerm.toLowerCase());
-                const matchesClass = selectedTimetableClass === "All Classes" || cls.name === selectedTimetableClass;
-                const matchesBranch = selectedTimetableBranch === "All Branches" || cls.branch?.name === selectedTimetableBranch;
-                return matchesSearch && matchesClass && matchesBranch;
-              })
-              .map((classData) => (
-                <TimetableCard 
-                  key={classData.id} 
-                  classData={classData} 
-                  subjects={subjects} 
-                  timetables={timetables} 
-                />
-              ))}
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">
+              Timetable management coming soon...
+            </p>
           </div>
-
-          {/* Empty State */}
-          {classes.filter(cls => {
-            const matchesSearch = cls.name.toLowerCase().includes(timetableSearchTerm.toLowerCase()) ||
-              cls.branch?.name.toLowerCase().includes(timetableSearchTerm.toLowerCase());
-            const matchesClass = selectedTimetableClass === "All Classes" || cls.name === selectedTimetableClass;
-            const matchesBranch = selectedTimetableBranch === "All Branches" || cls.branch?.name === selectedTimetableBranch;
-            return matchesSearch && matchesClass && matchesBranch;
-          }).length === 0 && (
-            <Card>
-              <CardContent className="text-center py-8">
-                <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">
-                  No classes found
-                </h3>
-                <p className="text-muted-foreground mb-4">
-                  {timetableSearchTerm ||
-                  selectedTimetableClass !== "All Classes" ||
-                  selectedTimetableBranch !== "All Branches"
-                    ? "Try adjusting your search or filters"
-                    : "No classes available for timetable management"}
-                </p>
-                {!timetableSearchTerm &&
-                  selectedTimetableClass === "All Classes" &&
-                  selectedTimetableBranch === "All Branches" && (
-                    <Button onClick={() => setShowAddTimetableDialog(true)}>
-                      <PlusIcon className="h-4 w-4 mr-2" />
-                      Add Timetable
-                    </Button>
-                  )}
-              </CardContent>
-            </Card>
-          )}
         </TabsContent>
 
         <TabsContent value="performance" className="space-y-6">
@@ -2928,46 +1816,21 @@ export default function ClassesPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="add-schedule">School Schedule *</Label>
-                <Select
-                  value={addForm.scheduleId || ""}
-                  onValueChange={(value) => setAddForm({ ...addForm, scheduleId: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select schedule" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {schedules.map((schedule) => (
-                      <SelectItem key={schedule.id} value={schedule.id}>
-                        {schedule.name} ({schedule.startTime} - {schedule.endTime})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-sm text-muted-foreground">
-                  This determines the class timing and number of periods per day
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="add-capacity">Class Capacity</Label>
-                <Input
-                  id="add-capacity"
-                  type="number"
-                  value={addForm.capacity}
-                  onChange={(e) => setAddForm({ ...addForm, capacity: parseInt(e.target.value) || 40 })}
-                  placeholder="40"
-                  min="1"
-                  max="100"
-                />
-                <p className="text-sm text-muted-foreground">
-                  Maximum number of students that can be enrolled in this class
-                </p>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="add-capacity">Class Capacity</Label>
+              <Input
+                id="add-capacity"
+                type="number"
+                value={addForm.capacity}
+                onChange={(e) => setAddForm({ ...addForm, capacity: parseInt(e.target.value) || 40 })}
+                placeholder="40"
+                min="1"
+                max="100"
+              />
+              <p className="text-sm text-muted-foreground">
+                Maximum number of students that can be enrolled in this class
+              </p>
             </div>
-
-
 
             {/* Actions */}
             <div className="flex justify-end gap-2 pt-4 border-t">
@@ -3639,137 +2502,6 @@ export default function ClassesPage() {
               </div>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Timetable Dialog */}
-      <Dialog open={showAddTimetableDialog} onOpenChange={setShowAddTimetableDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add New Timetable</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-6">
-            {addTimetableError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm text-red-600">{addTimetableError}</p>
-              </div>
-            )}
-            
-            <div className="space-y-2">
-              <Label htmlFor="timetable-class">Class *</Label>
-              <Select
-                value={addTimetableForm.classId}
-                onValueChange={(value) => setAddTimetableForm({ ...addTimetableForm, classId: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select class" />
-                </SelectTrigger>
-                <SelectContent>
-                  {classes.map((classData) => (
-                    <SelectItem key={classData.id} value={classData.id}>
-                      {classData.name} ({classData.academicYear})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="timetable-subject">Subject *</Label>
-              <Select
-                value={addTimetableForm.subjectId}
-                onValueChange={(value) => setAddTimetableForm({ ...addTimetableForm, subjectId: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select subject" />
-                </SelectTrigger>
-                <SelectContent>
-                  {subjects.map((subject) => (
-                    <SelectItem key={subject.id} value={subject.id}>
-                      {subject.name} ({subject.code})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="timetable-day">Day of Week *</Label>
-              <Select
-                value={addTimetableForm.dayOfWeek.toString()}
-                onValueChange={(value) => setAddTimetableForm({ ...addTimetableForm, dayOfWeek: parseInt(value) })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select day" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">Sunday</SelectItem>
-                  <SelectItem value="1">Monday</SelectItem>
-                  <SelectItem value="2">Tuesday</SelectItem>
-                  <SelectItem value="3">Wednesday</SelectItem>
-                  <SelectItem value="4">Thursday</SelectItem>
-                  <SelectItem value="5">Friday</SelectItem>
-                  <SelectItem value="6">Saturday</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="timetable-period">Period *</Label>
-              <Select
-                value={addTimetableForm.periodNumber?.toString() || ""}
-                onValueChange={(value) => {
-                  const selectedClass = classes.find(c => c.id === addTimetableForm.classId);
-                  if (selectedClass?.schedule && value) {
-                    const periodNumber = parseInt(value);
-                    const periodStartTime = calculatePeriodStartTime(selectedClass.schedule, periodNumber);
-                    const periodEndTime = calculatePeriodEndTime(selectedClass.schedule, periodNumber);
-                    setAddTimetableForm({ 
-                      ...addTimetableForm, 
-                      periodNumber: periodNumber,
-                      startTime: periodStartTime,
-                      endTime: periodEndTime
-                    });
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select period" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(() => {
-                    const selectedClass = classes.find(c => c.id === addTimetableForm.classId);
-                    if (!selectedClass?.schedule) return null;
-                    
-                    const totalPeriods = calculateTotalPeriods(selectedClass.schedule);
-                    return Array.from({ length: totalPeriods }, (_, i) => i + 1).map(period => (
-                      <SelectItem key={period} value={period.toString()}>
-                        Period {period} ({calculatePeriodStartTime(selectedClass.schedule!, period)} - {calculatePeriodEndTime(selectedClass.schedule!, period)})
-                      </SelectItem>
-                    ));
-                  })()}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {addTimetableForm.periodNumber && (
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm font-medium text-blue-900">Selected Period:</p>
-                <p className="text-sm text-blue-700">
-                  Period {addTimetableForm.periodNumber} • {addTimetableForm.startTime} - {addTimetableForm.endTime}
-                </p>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2 pt-4 border-t">
-              <Button variant="outline" onClick={() => setShowAddTimetableDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleAddTimetable}>
-                Add Timetable
-              </Button>
-            </div>
-          </div>
         </DialogContent>
       </Dialog>
     </div>
