@@ -22,6 +22,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { upsertClassRoutine } from "@/app/actions/classRoutine";
+import { useToast } from "@/components/ui/use-toast";
 
 // Assignment type for slot assignments
 type Assignment = {
@@ -150,6 +152,9 @@ export default function ClassRoutingEditPage() {
   const [dayTimeSlots, setDayTimeSlots] = useState<Record<string, string[]>>(
     {},
   );
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const { toast } = useToast();
 
   // Dialog form state
   const [formClassType, setFormClassType] = useState("regular");
@@ -401,6 +406,68 @@ export default function ClassRoutingEditPage() {
     setDialogOpen(false);
     setDialogData(null);
   };
+
+  // Helper to get current class object
+  const currentClassObj = classOptions.find((c) => c.value === classValue);
+
+  // Save routine handler
+  async function handleSaveRoutine() {
+    if (!classValue || !yearValue || !classBranchId || Object.keys(assignments).length === 0) return;
+    setSaveLoading(true);
+    // Find the full class object for schoolId/createdBy
+    const allClassesRes = await getClasses();
+    let schoolId = "";
+    let createdBy = "";
+    if (allClassesRes.success && Array.isArray(allClassesRes.data)) {
+      const found = allClassesRes.data.find((c: any) => c.id === classValue);
+      schoolId = found?.branch?.schoolId || found?.schoolId || "";
+      createdBy = found?.teacherId || ""; // fallback, ideally use session user id
+    }
+    // Map frontend classType to Prisma enum
+    const classTypeMap: Record<string, string> = {
+      regular: "REGULAR",
+      special: "SPECIAL",
+      break: "BREAK",
+      lab: "LAB",
+      practical: "PRACTICAL",
+      assignment: "ASSIGNMENT",
+    };
+    // Prepare slots
+    const slots = Object.entries(assignments).map(([key, value]) => {
+      const [day, time] = key.split("|");
+      const [startTime, endTime] = time.split("-");
+      return {
+        day,
+        startTime,
+        endTime: value.endTime || endTime,
+        subjectId: value.subject || undefined,
+        teacherId: value.teacher || undefined,
+        classType: classTypeMap[value.classType] || "REGULAR",
+      };
+    });
+    const res = await upsertClassRoutine({
+      classId: classValue,
+      academicYear: yearValue,
+      branchId: classBranchId,
+      schoolId,
+      createdBy,
+      slots,
+    });
+    setSaveLoading(false);
+    if (res.success) {
+      toast({
+        title: "Routine saved successfully!",
+        description: "The class routine has been saved.",
+        variant: "success",
+      });
+    } else {
+      toast({
+        title: "Failed to save routine",
+        description: res.message || "An error occurred while saving the routine.",
+        variant: "destructive",
+      });
+    }
+  }
 
   return (
     <div className="flex-1 space-y-4 p-6">
@@ -703,6 +770,14 @@ export default function ClassRoutingEditPage() {
           )}
         </CardContent>
       </Card>
+      <div className="mt-6 flex gap-4 items-center">
+        <Button
+          onClick={handleSaveRoutine}
+          disabled={saveLoading || !classValue || !classBranchId || Object.keys(assignments).length === 0}
+        >
+          {saveLoading ? "Saving..." : "Save Routine"}
+        </Button>
+      </div>
     </div>
   );
 }

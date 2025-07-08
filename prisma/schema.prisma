@@ -184,6 +184,7 @@ model Class {
   exams        Exam[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+  classRoutines ClassRoutine[]
 }
 
 model Section {
@@ -217,6 +218,7 @@ model Subject {
   examResults  ExamResult[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+  routineSlots RoutineSlot[]
 }
 
 model Chapter {
@@ -262,6 +264,7 @@ model Teacher {
   attendance       Attendance[]
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
+  routineSlots    RoutineSlot[]
 }
 
 model Student {
@@ -560,4 +563,44 @@ model Settings {
   subjectDuration Int?   // Global subject duration in minutes
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+enum ClassType {
+  REGULAR
+  SPECIAL
+  BREAK
+  LAB
+  PRACTICAL
+  ASSIGNMENT
+}
+
+model ClassRoutine {
+  id            String        @id @default(uuid())
+  aamarId       String
+  classId       String
+  academicYear  String
+  branchId      String
+  schoolId      String
+  createdBy     String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  class         Class         @relation(fields: [classId], references: [id])
+  slots         RoutineSlot[]
+}
+
+model RoutineSlot {
+  id             String        @id @default(uuid())
+  aamarId        String
+  classRoutineId String
+  day            String
+  startTime      String
+  endTime        String
+  subjectId      String?
+  teacherId      String?
+  classType      ClassType
+
+  classRoutine   ClassRoutine  @relation(fields: [classRoutineId], references: [id])
+  subject        Subject?      @relation(fields: [subjectId], references: [id])
+  teacher        Teacher?      @relation(fields: [teacherId], references: [id])
 }
