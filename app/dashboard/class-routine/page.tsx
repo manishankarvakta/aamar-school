@@ -65,7 +65,7 @@ export default function ClassRoutinePage() {
             <Download className="h-4 w-4 mr-2" />
             Export Schedule
           </Button>
-          <Link href="/dashboard/class-routine/edit">
+          <Link href="/dashboard/class-routine/addRoutine">
             <Button>
               <Plus className="h-4 w-4 mr-2" />
               Add New Schedule

@@ -278,6 +278,38 @@ export async function getTeachers(page: number = 1, limit: number = 10) {
   }
 }
 
+// Get all teachers for aamarId, no pagination, minimal info for selects
+export async function getAllTeachers() {
+  try {
+    const session = await requireAuth();
+    const teachers = await prisma.teacher.findMany({
+      where: { aamarId: session.aamarId },
+      include: {
+        user: true
+      },
+      orderBy: {
+        user: {
+          firstName: 'asc'
+        }
+      }
+    });
+    return {
+      success: true,
+      data: teachers.map(t => ({
+        id: t.id,
+        name: `${t.user.firstName} ${t.user.lastName}`
+      }))
+    };
+  } catch (error) {
+    console.error('Error fetching all teachers:', error);
+    return {
+      success: false,
+      data: [],
+      error: 'Failed to fetch all teachers'
+    };
+  }
+}
+
 // Get teacher by ID
 export async function getTeacherById(teacherId: string) {
   try {
