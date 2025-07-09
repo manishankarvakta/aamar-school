@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { getSettings } from "@/app/actions/settings";
 import { getSubjectsForClass, getClasses } from "@/app/actions/classes";
 import { getAllTeachers } from "@/app/actions/teachers";
-import { Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Calendar, Pencil, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogTrigger,
@@ -22,8 +22,12 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { upsertClassRoutine } from "@/app/actions/classRoutine";
+import {
+  upsertClassRoutine,
+  getClassRoutine,
+} from "@/app/actions/classRoutine";
 import { useToast } from "@/components/ui/use-toast";
+import Link from "next/link";
 
 // Assignment type for slot assignments
 type Assignment = {
@@ -212,13 +216,13 @@ export default function ClassRoutingEditPage() {
       if (res.success && res.data) {
         const schedule = parseSchedule(res.data.weeklySchedule);
         const openDays = [
+          "Friday",
+          "Saturday",
           "Sunday",
           "Monday",
           "Tuesday",
           "Wednesday",
           "Thursday",
-          "Friday",
-          "Saturday",
         ].filter((_, i) => schedule[i]?.open);
         setDays(openDays);
         // Use the first open day for start/end time
@@ -374,6 +378,49 @@ export default function ClassRoutingEditPage() {
     }
   }, [dialogOpen, dialogData]);
 
+  // Move fetchAndSetRoutine to component scope
+  async function fetchAndSetRoutine(
+    classId: string,
+    subjects: any,
+    teachers: any,
+  ) {
+    if (!classId) {
+      setAssignments({});
+      return;
+    }
+    const res = await getClassRoutine(classId);
+    console.log("getClassRoutine result for classId", classId, res); // <-- log the result
+    if (
+      res.success &&
+      res.data &&
+      Array.isArray(subjects) &&
+      Array.isArray(teachers)
+    ) {
+      const routine = res.data;
+      const newAssignments: Record<string, Assignment> = {};
+      for (const slot of routine.slots || []) {
+        const key = `${slot.day}|${slot.startTime}-${slot.endTime}`;
+        newAssignments[key] = {
+          subject: slot.subjectId || "",
+          teacher: slot.teacherId || "",
+          classType: (slot.classType || "REGULAR").toLowerCase(),
+          ...(slot.classType !== "REGULAR" && slot.endTime
+            ? { endTime: slot.endTime }
+            : {}),
+        };
+      }
+      setAssignments(newAssignments);
+    } else {
+      setAssignments({});
+    }
+  }
+
+  // Update useEffect to use the new function
+  useEffect(() => {
+    fetchAndSetRoutine(classValue, subjects, teachers);
+    // Only run when classValue, subjects, or teachers change
+  }, [classValue, subjects.length, teachers.length]);
+
   const handleAddSubject = (day: string, time: string) => {
     setDialogData({ day, time });
     setDialogOpen(true);
@@ -412,7 +459,13 @@ export default function ClassRoutingEditPage() {
 
   // Save routine handler
   async function handleSaveRoutine() {
-    if (!classValue || !yearValue || !classBranchId || Object.keys(assignments).length === 0) return;
+    if (
+      !classValue ||
+      !yearValue ||
+      !classBranchId ||
+      Object.keys(assignments).length === 0
+    )
+      return;
     setSaveLoading(true);
     // Find the full class object for schoolId/createdBy
     const allClassesRes = await getClasses();
@@ -458,12 +511,15 @@ export default function ClassRoutingEditPage() {
       toast({
         title: "Routine saved successfully!",
         description: "The class routine has been saved.",
-        variant: "success",
+        variant: "default",
       });
+      // Fetch and update the table with the latest routine
+      await fetchAndSetRoutine(classValue, subjects, teachers);
     } else {
       toast({
         title: "Failed to save routine",
-        description: res.message || "An error occurred while saving the routine.",
+        description:
+          res.message || "An error occurred while saving the routine.",
         variant: "destructive",
       });
     }
@@ -471,40 +527,67 @@ export default function ClassRoutingEditPage() {
 
   return (
     <div className="flex-1 space-y-4 p-6">
-      <div className="flex flex-col md:flex-row gap-4 md:items-end">
+      <div className="space-y-3">
+        <Link href={"/dashboard/class-routine"}>
+          <Button variant={"outline"} size={"icon"} className="rounded-full">
+            <ArrowLeft />
+          </Button>
+        </Link>
         <div>
-          <label className="text-sm font-medium mb-2 block">Class</label>
-          <Select value={classValue} onValueChange={setClassValue}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Select Class" />
-            </SelectTrigger>
-            <SelectContent>
-              {filteredClassOptions.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <label className="text-sm font-medium mb-2 block">
-            Academic Year
-          </label>
-          <Select value={yearValue} onValueChange={setYearValue}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Select Year" />
-            </SelectTrigger>
-            <SelectContent>
-              {academicYearOptions.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Customize Class Routine
+          </h1>
+          <p className="text-muted-foreground">
+            Manage and view class schedules and timetables
+          </p>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center">
+            <Calendar className="h-5 w-5 mr-2" />
+            Schedule Filters
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col md:flex-row gap-4 md:items-end">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Class</label>
+              <Select value={classValue} onValueChange={setClassValue}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Select Class" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredClassOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">
+                Academic Year
+              </label>
+              <Select value={yearValue} onValueChange={setYearValue}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Select Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {academicYearOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Class Routing Table</CardTitle>
@@ -514,16 +597,16 @@ export default function ClassRoutingEditPage() {
             <div>Loading...</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
+              <table className="w-full border-collapse table-fixed">
                 <thead>
                   <tr>
-                    <th className="border border-gray-200 p-3 text-sm bg-gray-50 text-left font-medium">
+                    <th className="border border-gray-200 p-3 text-sm bg-gray-50 text-left font-medium w-28 min-w-[7rem] max-w-[7rem] h-16 min-h-[4rem]">
                       Time
                     </th>
                     {days.map((day) => (
                       <th
                         key={day}
-                        className="border border-gray-200 p-3 text-sm bg-gray-50 text-center font-medium"
+                        className="border border-gray-200 p-3 text-sm bg-gray-50 text-center font-medium w-32 min-w-[8rem] max-w-[8rem] h-16 min-h-[4rem]"
                       >
                         {day}
                       </th>
@@ -534,8 +617,11 @@ export default function ClassRoutingEditPage() {
                   {/* Use dynamic slots per day */}
                   {dayTimeSlots[days[0]] &&
                     dayTimeSlots[days[0]].map((slot, slotIdx) => (
-                      <tr key={slot} className="hover:bg-gray-50">
-                        <td className="border border-gray-200 p-3 font-medium bg-gray-50 text-xs">
+                      <tr
+                        key={slot}
+                        className="hover:bg-gray-50 h-20 min-h-[5rem]"
+                      >
+                        <td className="border border-gray-200 p-3 font-medium bg-gray-50 text-xs w-28 min-w-[7rem] max-w-[7rem] h-20 min-h-[5rem] align-middle">
                           {slot}
                         </td>
                         {days.map((day) => {
@@ -546,7 +632,7 @@ export default function ClassRoutingEditPage() {
                           return (
                             <td
                               key={day}
-                              className="border relative border-gray-200 p-3 text-center"
+                              className="border relative border-gray-200 p-3 text-center w-32 min-w-[8rem] max-w-[8rem] h-20 min-h-[5rem] align-middle"
                             >
                               {assigned ? (
                                 <>
@@ -615,7 +701,7 @@ export default function ClassRoutingEditPage() {
                                 </>
                               ) : (
                                 <button
-                                  className="text-xs w-full h-full"
+                                  className="flex items-center justify-center w-full h-full text-gray-400 hover:text-blue-600"
                                   type="button"
                                   onClick={() => {
                                     setFormClassType("regular");
@@ -625,8 +711,23 @@ export default function ClassRoutingEditPage() {
                                     setDialogData({ day, time: slot });
                                     setDialogOpen(true);
                                   }}
+                                  title="Add Subject"
+                                  aria-label="Add Subject"
                                 >
-                                  Add Subject
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-5 w-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth={2}
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      d="M12 4v16m8-8H4"
+                                    />
+                                  </svg>
                                 </button>
                               )}
                             </td>
@@ -664,7 +765,9 @@ export default function ClassRoutingEditPage() {
                           readOnly
                         />
                       </div>
-                      <div className={`${formClassType !== "regular col-span-1" ? "block":"hidden"}`}>
+                      <div
+                        className={`${formClassType !== "regular col-span-1" ? "block" : "hidden"}`}
+                      >
                         {formClassType !== "regular" && (
                           <>
                             <label className="text-xs font-medium block mb-1">
@@ -711,7 +814,9 @@ export default function ClassRoutingEditPage() {
                       </Select>
                     </div>
 
-                    <div className={`${formClassType === "break" ? "hidden":"block"}`}>
+                    <div
+                      className={`${formClassType === "break" ? "hidden" : "block"}`}
+                    >
                       <label className="text-xs font-medium block mb-1">
                         Subject
                       </label>
@@ -731,7 +836,9 @@ export default function ClassRoutingEditPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className={`${formClassType === "break" ? "hidden":"block"}`}>
+                    <div
+                      className={`${formClassType === "break" ? "hidden" : "block"}`}
+                    >
                       <label className="text-xs font-medium block mb-1">
                         Teacher
                       </label>
@@ -773,7 +880,12 @@ export default function ClassRoutingEditPage() {
       <div className="mt-6 flex gap-4 items-center">
         <Button
           onClick={handleSaveRoutine}
-          disabled={saveLoading || !classValue || !classBranchId || Object.keys(assignments).length === 0}
+          disabled={
+            saveLoading ||
+            !classValue ||
+            !classBranchId ||
+            Object.keys(assignments).length === 0
+          }
         >
           {saveLoading ? "Saving..." : "Save Routine"}
         </Button>

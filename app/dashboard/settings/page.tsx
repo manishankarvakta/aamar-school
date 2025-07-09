@@ -93,15 +93,8 @@ export default function SettingsPage() {
   });
 
   // Weekly schedule state for each day
-  const defaultWeeklySchedule = [
-    { open: false, start: '08:00', end: '14:00' }, // Sunday
-    { open: false, start: '08:00', end: '14:00' }, // Monday
-    { open: false, start: '08:00', end: '14:00' }, // Tuesday
-    { open: false, start: '08:00', end: '14:00' }, // Wednesday
-    { open: false, start: '08:00', end: '14:00' }, // Thursday
-    { open: false, start: '08:00', end: '14:00' }, // Friday
-    { open: false, start: '08:00', end: '14:00' }, // Saturday
-  ];
+  const dayNames = ["Friday", "Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"];
+  const defaultWeeklySchedule = dayNames.map(day => ({ name: day, open: false, start: '08:00', end: '14:00' }));
   const [weeklySchedule, setWeeklySchedule] = useState(defaultWeeklySchedule);
   // 1. Add subjectDuration state
   const [subjectDuration, setSubjectDuration] = useState(45);
@@ -144,7 +137,12 @@ export default function SettingsPage() {
                 typeof item.end === 'string'
             )
           ) {
-            loadedSchedule = parsed;
+            loadedSchedule = parsed.map((item, idx) => ({
+              name: item.name || dayNames[idx],
+              open: item.open,
+              start: item.start,
+              end: item.end,
+            }));
           }
         }
         if (typeof res.data.subjectDuration === 'number') {
@@ -192,7 +190,7 @@ export default function SettingsPage() {
   ];
 
   // Change the order of days to start with Friday
-  const dayNames = ["Friday", "Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"];
+  // const dayNames = ["Friday", "Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"];
 
   // Add this function (replace with your actual API/server action as needed)
   async function saveScheduleSettings(schedule: typeof weeklySchedule) {
@@ -464,80 +462,76 @@ export default function SettingsPage() {
             <CardContent className="space-y-6">
                         <div className="space-y-2">               
                 <div className="flex flex-col gap-2">
-                  {dayNames.map((day, idx) => {
-                    // Map day index to weeklySchedule index
-                    const scheduleIdx = [5, 6, 0, 1, 2, 3, 4][idx];
-                    return (
-                      <div key={day} className="flex flex-col sm:flex-row sm:items-center gap-4 p-3 border rounded-lg bg-white">
-                        <div className="flex items-center gap-4">
-                            <Switch
-                            id={`open-${scheduleIdx}`}
-                            checked={weeklySchedule[scheduleIdx].open}
-                            onCheckedChange={checked => {
-                              if (!scheduleEditing) return;
-                              const updated = [...weeklySchedule];
-                              updated[scheduleIdx].open = checked;
-                              // If switching to open, set default times if not set
-                              if (checked && (updated[scheduleIdx].start === '' || updated[scheduleIdx].end === '')) {
-                                updated[scheduleIdx].start = '08:00';
-                                updated[scheduleIdx].end = '14:00';
-                              }
-                              setWeeklySchedule(updated);
-                            }}
-                            disabled={!scheduleEditing}
-                          />
-                          <Label htmlFor={`open-${scheduleIdx}`} className="w-24 text-sm font-medium">{day}</Label>
-                          {weeklySchedule[scheduleIdx].open ? (
-                            <>
-                          <Select 
-                                value={weeklySchedule[scheduleIdx].start === '24hours' ? '24hours' : weeklySchedule[scheduleIdx].start}
-                                onValueChange={value => {
-                                  if (!scheduleEditing) return;
-                                  const updated = [...weeklySchedule];
-                                  updated[scheduleIdx].start = value;
-                                  if (value === '24hours') updated[scheduleIdx].end = '24hours';
-                                  setWeeklySchedule(updated);
-                                }}
-                                disabled={!scheduleEditing}
-                              >
-                                <SelectTrigger className="w-32">
-                                  <SelectValue placeholder="Opens at" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                  {timeOptions.map(opt => (
-                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                                  ))}
-                            </SelectContent>
-                          </Select>
-                              <span>-</span>
-                          <Select 
-                                value={weeklySchedule[scheduleIdx].end === '24hours' ? '24hours' : weeklySchedule[scheduleIdx].end}
-                                onValueChange={value => {
-                                  if (!scheduleEditing) return;
-                                  const updated = [...weeklySchedule];
-                                  updated[scheduleIdx].end = value;
-                                  if (value === '24hours') updated[scheduleIdx].start = '24hours';
-                                  setWeeklySchedule(updated);
-                                }}
-                                disabled={!scheduleEditing}
-                              >
-                                <SelectTrigger className="w-32">
-                                  <SelectValue placeholder="Closes at" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                  {timeOptions.map(opt => (
-                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                            </>
-                          ) : (
-                            <span className="text-gray-400 font-medium ml-2">Closed</span>
-                          )}
-                        </div>
+                  {weeklySchedule.map((day, idx) => (
+                    <div key={day.name} className="flex flex-col sm:flex-row sm:items-center gap-4 p-3 border rounded-lg bg-white">
+                      <div className="flex items-center gap-4">
+                        <Switch
+                          id={`open-${idx}`}
+                          checked={day.open}
+                          onCheckedChange={checked => {
+                            if (!scheduleEditing) return;
+                            const updated = [...weeklySchedule];
+                            updated[idx].open = checked;
+                            if (checked && (updated[idx].start === '' || updated[idx].end === '')) {
+                              updated[idx].start = '08:00';
+                              updated[idx].end = '14:00';
+                            }
+                            setWeeklySchedule(updated);
+                          }}
+                          disabled={!scheduleEditing}
+                        />
+                        {/* Ensure day name is always visible */}
+                        <span className="w-24 text-sm font-medium text-gray-900">{day.name}</span>
+                        {day.open ? (
+                          <>
+                            <Select 
+                              value={day.start === '24hours' ? '24hours' : day.start}
+                              onValueChange={value => {
+                                if (!scheduleEditing) return;
+                                const updated = [...weeklySchedule];
+                                updated[idx].start = value;
+                                if (value === '24hours') updated[idx].end = '24hours';
+                                setWeeklySchedule(updated);
+                              }}
+                              disabled={!scheduleEditing}
+                            >
+                              <SelectTrigger className="w-32">
+                                <SelectValue placeholder="Opens at" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {timeOptions.map(opt => (
+                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <span>-</span>
+                            <Select 
+                              value={day.end === '24hours' ? '24hours' : day.end}
+                              onValueChange={value => {
+                                if (!scheduleEditing) return;
+                                const updated = [...weeklySchedule];
+                                updated[idx].end = value;
+                                if (value === '24hours') updated[idx].start = '24hours';
+                                setWeeklySchedule(updated);
+                              }}
+                              disabled={!scheduleEditing}
+                            >
+                              <SelectTrigger className="w-32">
+                                <SelectValue placeholder="Closes at" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {timeOptions.map(opt => (
+                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </>
+                        ) : (
+                          <span className="text-gray-400 font-medium ml-2">Closed</span>
+                        )}
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                             </div>
                             </div>
               <div className="mt-4">

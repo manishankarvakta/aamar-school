@@ -22,11 +22,11 @@ interface ClassRoutineResult {
 }
 
 // Get a ClassRoutine by id (with slots, subject, teacher, class)
-export async function getClassRoutine(id: string): Promise<ClassRoutineResult> {
+export async function getClassRoutine(classId: string): Promise<ClassRoutineResult> {
   try {
     const session = await requireAuth();
     const routine = await prisma.classRoutine.findFirst({
-      where: { id, aamarId: session.aamarId },
+      where: { classId, aamarId: session.aamarId },
       include: {
         class: true,
         slots: {
@@ -87,8 +87,7 @@ export async function deleteClassRoutine(id: string): Promise<ClassRoutineResult
   }
 }
 
-// Create or update a ClassRoutine (upsert by id)
-// If id is provided and found, update. Otherwise, create new.
+
 // Pass slots as an array of slot objects (with day, startTime, endTime, subjectId, teacherId, classType)
 export async function upsertClassRoutine({
   id,
