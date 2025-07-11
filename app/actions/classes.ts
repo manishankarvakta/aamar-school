@@ -1046,14 +1046,14 @@ export async function getAvailableTeachers(branchId?: string): Promise<ClassResu
 }
 
 // Get subjects for class
-export async function getSubjectsForClass(): Promise<ClassResult> {
+export async function getSubjectsForClass(classId: string): Promise<ClassResult> {
   try {
     // Get session data for multi-tenancy
     const session = await requireAuth();
-    
     const subjects = await prisma.subject.findMany({
       where: {
         aamarId: session.aamarId,
+        classId: classId,
       },
       include: {
         school: true,
@@ -1063,7 +1063,6 @@ export async function getSubjectsForClass(): Promise<ClassResult> {
         { name: 'asc' },
       ],
     });
-
     return {
       success: true,
       data: subjects,
@@ -1078,3 +1077,5 @@ export async function getSubjectsForClass(): Promise<ClassResult> {
     };
   }
 } 
+
+

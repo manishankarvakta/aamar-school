@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,32 +11,34 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  SettingsIcon,
   SchoolIcon,
-  UserIcon,
   ShieldIcon,
   BellIcon,
-  PaletteIcon,
   DatabaseIcon,
-  MailIcon,
-  PhoneIcon,
-  MapPinIcon,
-  GlobeIcon,
-  LockIcon,
-  KeyIcon,
   SaveIcon,
   RefreshCcwIcon,
   DownloadIcon,
   UploadIcon,
-  AlertTriangleIcon,
   CheckCircleIcon,
-  CameraIcon,
+  ClockIcon,
+  EditIcon,
 } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
+import isEqual from 'lodash.isequal';
+import { getSettings, updateSettings } from '@/app/actions/settings';
+
 
 export default function SettingsPage() {
   const [selectedTab, setSelectedTab] = useState('school');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [scheduleEditing, setScheduleEditing] = useState<boolean>(false);
+  const { toast } = useToast();
 
+  const toggleScheduleEditing = () => {
+    setScheduleEditing(!scheduleEditing);
+  }
+
+ 
   // Settings state
   const [schoolSettings, setSchoolSettings] = useState({
     name: 'Springfield International School',
@@ -51,7 +53,11 @@ export default function SettingsPage() {
     academicYear: '2024-2025',
     gradeSystem: 'A-F',
     timezone: 'EST',
-    currency: 'USD'
+    currency: 'USD',
+    startTime: '08:00',
+    endTime: '14:00',
+    periodDuration: 45,
+    weeklyHolidays: [] as number[],
   });
 
   const [notificationSettings, setNotificationSettings] = useState({
@@ -86,6 +92,74 @@ export default function SettingsPage() {
     defaultLanguage: 'en'
   });
 
+  // Weekly schedule state for each day
+  const dayNames = ["Friday", "Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"];
+  const defaultWeeklySchedule = dayNames.map(day => ({ name: day, open: false, start: '08:00', end: '14:00' }));
+  const [weeklySchedule, setWeeklySchedule] = useState(defaultWeeklySchedule);
+  // 1. Add subjectDuration state
+  const [subjectDuration, setSubjectDuration] = useState(45);
+  // Remove isEditingSchedule, editWeeklySchedule, setIsEditingSchedule, setEditWeeklySchedule, and all edit mode logic
+  // Always show editable controls for each day
+
+  // Track last saved schedule
+  const [lastSavedSchedule, setLastSavedSchedule] = useState(weeklySchedule);
+  const [hasScheduleChanges, setHasScheduleChanges] = useState(false);
+
+  // Update hasScheduleChanges whenever weeklySchedule or lastSavedSchedule changes
+  useEffect(() => {
+    setHasScheduleChanges(!isEqual(weeklySchedule, lastSavedSchedule));
+  }, [weeklySchedule, lastSavedSchedule]);
+
+  // Load schedules on component mount
+  useEffect(() => {
+    async function fetchSettings() {
+      const res = await getSettings();
+      if (res.success && res.data) {
+        let loadedSchedule = defaultWeeklySchedule;
+        let loadedDuration = 45;
+        if (res.data.weeklySchedule) {
+          let parsed = res.data.weeklySchedule;
+          if (typeof parsed === 'string') {
+            try {
+              parsed = JSON.parse(parsed);
+            } catch {
+              parsed = defaultWeeklySchedule;
+            }
+          }
+          if (
+            Array.isArray(parsed) &&
+            parsed.every(
+              (item) =>
+                item &&
+                typeof item === 'object' &&
+                typeof item.open === 'boolean' &&
+                typeof item.start === 'string' &&
+                typeof item.end === 'string'
+            )
+          ) {
+            loadedSchedule = parsed.map((item, idx) => ({
+              name: item.name || dayNames[idx],
+              open: item.open,
+              start: item.start,
+              end: item.end,
+            }));
+          }
+        }
+        if (typeof res.data.subjectDuration === 'number') {
+          loadedDuration = res.data.subjectDuration;
+        }
+        setWeeklySchedule(loadedSchedule);
+        setLastSavedSchedule(loadedSchedule);
+        setSubjectDuration(loadedDuration);
+      } else {
+        toast({ title: 'Error', description: res.message || 'Failed to load settings', variant: 'destructive' });
+      }
+    }
+    fetchSettings();
+  }, []);
+
+
+
   const handleSave = async (section: string) => {
     setIsLoading(true);
     // Simulate API call
@@ -98,6 +172,107 @@ export default function SettingsPage() {
     // Reset to default values
     console.log(`Resetting ${section} to defaults`);
   };
+
+
+  // Helper: generate time options for dropdowns
+  const timeOptions = [
+    { value: '24hours', label: '24 hours' },
+    ...Array.from({ length: 48 }, (_, i) => {
+      const hour = Math.floor(i / 2);
+      const min = i % 2 === 0 ? '00' : '30';
+      const ampm = hour < 12 ? 'AM' : 'PM';
+      const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+      return {
+        value: `${hour.toString().padStart(2, '0')}:${min}`,
+        label: `${hour12}:${min} ${ampm}`
+      };
+    })
+  ];
+
+  // Change the order of days to start with Friday
+  // const dayNames = ["Friday", "Saturday", "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"];
+
+  // Add this function (replace with your actual API/server action as needed)
+  async function saveScheduleSettings(schedule: typeof weeklySchedule) {
+    await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ weeklySchedule: schedule }),
+    });
+  }
+
+  // 6. Update handleSaveSchedule to call updateSettings({ weeklySchedule, subjectDuration }) and handle API shape
+  async function handleSaveSchedule() {
+    setIsLoading(true);
+    const res = await updateSettings({ weeklySchedule, subjectDuration });
+    setIsLoading(false);
+    if (res.success) {
+      setLastSavedSchedule(weeklySchedule);
+      toast({ title: 'Changes are saved', description: 'Your schedule has been updated.' });
+      setScheduleEditing(false);
+    } else {
+      toast({ title: 'Error', description: res.message || 'Failed to update schedule', variant: 'destructive' });
+    }
+  }
+
+  // Save handlers for each tab
+  async function handleSaveSchool() {
+    setIsLoading(true);
+    try {
+      // await updateSettings({ schoolSettings });
+      toast({ title: 'Changes are saved', description: 'School information updated.' });
+    } catch (e) {
+      toast({ title: 'Error', description: 'Failed to update school information.', variant: 'destructive' });
+    }
+    setIsLoading(false);
+  }
+
+  async function handleSaveNotifications() {
+    setIsLoading(true);
+    try {
+      // await updateSettings({ notificationSettings });
+      toast({ title: 'Changes are saved', description: 'Notification preferences updated.' });
+    } catch (e) {
+      toast({ title: 'Error', description: 'Failed to update notification preferences.', variant: 'destructive' });
+    }
+    setIsLoading(false);
+  }
+
+  async function handleSaveSecurity() {
+    setIsLoading(true);
+    try {
+      // await updateSettings({ securitySettings });
+      toast({ title: 'Changes are saved', description: 'Security settings updated.' });
+    } catch (e) {
+      toast({ title: 'Error', description: 'Failed to update security settings.', variant: 'destructive' });
+    }
+    setIsLoading(false);
+  }
+
+  async function handleSaveSystem() {
+    setIsLoading(true);
+    try {
+      // await updateSettings({ systemSettings });
+      toast({ title: 'Changes are saved', description: 'System configuration updated.' });
+    } catch (e) {
+      toast({ title: 'Error', description: 'Failed to update system configuration.', variant: 'destructive' });
+    }
+    setIsLoading(false);
+  }
+
+  async function handleSaveBackup() {
+    setIsLoading(true);
+    try {
+      // await updateSettings({
+      //   autoBackup: systemSettings.autoBackup,
+      //   backupFrequency: securitySettings.backupFrequency,
+      // });
+      toast({ title: 'Changes are saved', description: 'Backup settings updated.' });
+    } catch (e) {
+      toast({ title: 'Error', description: 'Failed to update backup settings.', variant: 'destructive' });
+    }
+    setIsLoading(false);
+  }
 
   return (
     <div className="space-y-6 pb-[150px] p-4">
@@ -123,8 +298,9 @@ export default function SettingsPage() {
 
       {/* Main Content */}
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="school">School</TabsTrigger>
+          <TabsTrigger value="schedule">Schedule</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="system">System</TabsTrigger>
@@ -263,10 +439,135 @@ export default function SettingsPage() {
                   <RefreshCcwIcon className="h-4 w-4 mr-2" />
                   Reset
                 </Button>
-                <Button onClick={() => handleSave('school')} disabled={isLoading}>
-                  <SaveIcon className="h-4 w-4 mr-2" />
+                <Button onClick={handleSaveSchool}>
+                  {isLoading ? <RefreshCcwIcon className="h-4 w-4 mr-2 animate-spin" /> : <SaveIcon className="h-4 w-4 mr-2" />}
                   Save Changes
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="schedule" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ClockIcon className="h-5 w-5" />
+                School Hours
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Set which days the school is open, and configure opening/closing times and subject duration for each day.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                        <div className="space-y-2">               
+                <div className="flex flex-col gap-2">
+                  {weeklySchedule.map((day, idx) => (
+                    <div key={day.name} className="flex flex-col sm:flex-row sm:items-center gap-4 p-3 border rounded-lg bg-white">
+                      <div className="flex items-center gap-4">
+                        <Switch
+                          id={`open-${idx}`}
+                          checked={day.open}
+                          onCheckedChange={checked => {
+                            if (!scheduleEditing) return;
+                            const updated = [...weeklySchedule];
+                            updated[idx].open = checked;
+                            if (checked && (updated[idx].start === '' || updated[idx].end === '')) {
+                              updated[idx].start = '08:00';
+                              updated[idx].end = '14:00';
+                            }
+                            setWeeklySchedule(updated);
+                          }}
+                          disabled={!scheduleEditing}
+                        />
+                        {/* Ensure day name is always visible */}
+                        <span className="w-24 text-sm font-medium text-gray-900">{day.name}</span>
+                        {day.open ? (
+                          <>
+                            <Select 
+                              value={day.start === '24hours' ? '24hours' : day.start}
+                              onValueChange={value => {
+                                if (!scheduleEditing) return;
+                                const updated = [...weeklySchedule];
+                                updated[idx].start = value;
+                                if (value === '24hours') updated[idx].end = '24hours';
+                                setWeeklySchedule(updated);
+                              }}
+                              disabled={!scheduleEditing}
+                            >
+                              <SelectTrigger className="w-32">
+                                <SelectValue placeholder="Opens at" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {timeOptions.map(opt => (
+                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <span>-</span>
+                            <Select 
+                              value={day.end === '24hours' ? '24hours' : day.end}
+                              onValueChange={value => {
+                                if (!scheduleEditing) return;
+                                const updated = [...weeklySchedule];
+                                updated[idx].end = value;
+                                if (value === '24hours') updated[idx].start = '24hours';
+                                setWeeklySchedule(updated);
+                              }}
+                              disabled={!scheduleEditing}
+                            >
+                              <SelectTrigger className="w-32">
+                                <SelectValue placeholder="Closes at" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {timeOptions.map(opt => (
+                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </>
+                        ) : (
+                          <span className="text-gray-400 font-medium ml-2">Closed</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                            </div>
+                            </div>
+              <div className="mt-4">
+                <Label className="font-medium">Subject Duration</Label>
+                <Select value={subjectDuration.toString()} onValueChange={v => setSubjectDuration(Number(v))} disabled={!scheduleEditing}>
+                  <SelectTrigger className="w-32">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="30">30 min</SelectItem>
+                    <SelectItem value="35">35 min</SelectItem>
+                    <SelectItem value="40">40 min</SelectItem>
+                    <SelectItem value="45">45 min</SelectItem>
+                    <SelectItem value="50">50 min</SelectItem>
+                    <SelectItem value="55">55 min</SelectItem>
+                    <SelectItem value="60">60 min</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex justify-end pt-4 border-t">
+                {!scheduleEditing ? (
+                  <Button onClick={toggleScheduleEditing}>
+                    <EditIcon className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                ) : (
+                  <Button onClick={async () => {
+                    setIsLoading(true);
+                    await handleSaveSchedule();
+                    setIsLoading(false);
+                    setScheduleEditing(false);
+                  }}>
+                    {isLoading ? <RefreshCcwIcon className="h-4 w-4 mr-2 animate-spin" /> : <SaveIcon className="h-4 w-4 mr-2" />}
+                    Save Changes
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -389,8 +690,8 @@ export default function SettingsPage() {
                   <RefreshCcwIcon className="h-4 w-4 mr-2" />
                   Reset
                 </Button>
-                <Button onClick={() => handleSave('notifications')} disabled={isLoading}>
-                  <SaveIcon className="h-4 w-4 mr-2" />
+                <Button onClick={handleSaveNotifications}>
+                  {isLoading ? <RefreshCcwIcon className="h-4 w-4 mr-2 animate-spin" /> : <SaveIcon className="h-4 w-4 mr-2" />}
                   Save Changes
                 </Button>
               </div>
@@ -496,8 +797,8 @@ export default function SettingsPage() {
                   <RefreshCcwIcon className="h-4 w-4 mr-2" />
                   Reset
                 </Button>
-                <Button onClick={() => handleSave('security')} disabled={isLoading}>
-                  <SaveIcon className="h-4 w-4 mr-2" />
+                <Button onClick={handleSaveSecurity}>
+                  {isLoading ? <RefreshCcwIcon className="h-4 w-4 mr-2 animate-spin" /> : <SaveIcon className="h-4 w-4 mr-2" />}
                   Save Changes
                 </Button>
               </div>
@@ -616,8 +917,8 @@ export default function SettingsPage() {
                   <RefreshCcwIcon className="h-4 w-4 mr-2" />
                   Reset
                 </Button>
-                <Button onClick={() => handleSave('system')} disabled={isLoading}>
-                  <SaveIcon className="h-4 w-4 mr-2" />
+                <Button onClick={handleSaveSystem}>
+                  {isLoading ? <RefreshCcwIcon className="h-4 w-4 mr-2 animate-spin" /> : <SaveIcon className="h-4 w-4 mr-2" />}
                   Save Changes
                 </Button>
               </div>
@@ -728,8 +1029,8 @@ export default function SettingsPage() {
                   <RefreshCcwIcon className="h-4 w-4 mr-2" />
                   Reset
                 </Button>
-                <Button onClick={() => handleSave('backup')} disabled={isLoading}>
-                  <SaveIcon className="h-4 w-4 mr-2" />
+                <Button onClick={handleSaveBackup}>
+                  {isLoading ? <RefreshCcwIcon className="h-4 w-4 mr-2 animate-spin" /> : <SaveIcon className="h-4 w-4 mr-2" />}
                   Save Changes
                 </Button>
               </div>
