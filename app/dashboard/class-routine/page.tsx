@@ -16,6 +16,7 @@ import { Plus, Download, Calendar } from "lucide-react";
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { getSettings } from "@/app/actions/settings";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // Helper functions (reuse from addRoutine)
 function toMinutes(t: string) {
@@ -403,23 +404,20 @@ export default function ClassRoutinePage() {
       {/* Schedule Table */}
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Weekly Schedule - {filteredClassOptions.find(opt => opt.value === classValue)?.label || "Class"}</CardTitle>
-            <Badge variant="secondary">Current Week</Badge>
-          </div>
+          <CardTitle>Class Routing Table</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div>Loading...</div>
-          ) : days.length === 0 || timeSlots.length === 0 ? (
-            <div>No routine found for this class.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse table-fixed">
                 <thead>
                   <tr>
-                    <th className="border border-gray-200 p-3 text-sm bg-gray-50 text-left font-medium w-28 min-w-[7rem] max-w-[7rem] h-16 min-h-[4rem]">Time</th>
-                    {days.map(day => (
+                    <th className="border border-gray-200 p-3 text-sm bg-gray-50 text-left font-medium w-28 min-w-[7rem] max-w-[7rem] h-16 min-h-[4rem]">
+                      Time
+                    </th>
+                    {days.map((day) => (
                       <th
                         key={day}
                         className="border border-gray-200 p-3 text-sm bg-gray-50 text-center font-medium w-32 min-w-[8rem] max-w-[8rem] h-16 min-h-[4rem]"
@@ -430,39 +428,20 @@ export default function ClassRoutinePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {timeSlots.map(slot => {
-                    // Check if any day in this slot has a break assignment
-                    const isBreakRow = days.some(day => {
-                      const key = `${day}|${slot}`;
-                      const assigned = assignments[key];
-                      return assigned && assigned.classType === "break";
-                    });
-                    if (isBreakRow) {
-                      // Use the first break label found
-                      const breakLabel = days.map(day => {
-                        const key = `${day}|${slot}`;
-                        const assigned = assignments[key];
-                        return assigned && assigned.classType === "break" && assigned.label;
-                      }).find(Boolean) || "Break";
-                      return (
-                        <tr key={slot} className="bg-yellow-50 h-20 min-h-[5rem]">
-                          <td className="border border-gray-200 p-3 font-medium bg-gray-50 text-xs w-28 min-w-[7rem] max-w-[7rem] h-20 min-h-[5rem] align-middle">
-                            {slot}
-                          </td>
-                          <td colSpan={days.length} className="border border-gray-200 p-3 text-center font-semibold text-yellow-700 text-base align-middle">
-                            {breakLabel}
-                          </td>
-                        </tr>
-                      );
-                    }
-                    // Not a break row, render normal cells
-                    return (
-                      <tr key={slot} className="hover:bg-gray-50 h-20 min-h-[5rem]">
+                  {/* Use dynamic slots per day */}
+                  {dayTimeSlots[days[0]] &&
+                    dayTimeSlots[days[0]].map((slot, slotIdx) => (
+                      <tr
+                        key={slot}
+                        className="hover:bg-gray-50 h-20 min-h-[5rem]"
+                      >
                         <td className="border border-gray-200 p-3 font-medium bg-gray-50 text-xs w-28 min-w-[7rem] max-w-[7rem] h-20 min-h-[5rem] align-middle">
                           {slot}
                         </td>
-                        {days.map((day: string) => {
-                          const key = `${day}|${slot}`;
+                        {days.map((day) => {
+                          const slotsForDay = dayTimeSlots[day] || [];
+                          const slotForDay = slotsForDay[slotIdx];
+                          const key = `${day}|${slotForDay}`;
                           const assigned = assignments[key];
                           return (
                             <td
@@ -472,10 +451,14 @@ export default function ClassRoutinePage() {
                               {assigned ? (
                                 <div className="pt-5">
                                   <div className="font-medium text-sm">
-                                    {getSubjectName(assigned.subject)}
+                                    {subjects.find(
+                                      (s) => s.value === assigned.subject,
+                                    )?.label || assigned.subject}
                                   </div>
                                   <div className="text-xs text-gray-600">
-                                    {getTeacherName(assigned.teacher)}
+                                    {teachers.find(
+                                      (t) => t.value === assigned.teacher,
+                                    )?.label || assigned.teacher}
                                   </div>
                                   <div
                                     className={[
@@ -495,14 +478,13 @@ export default function ClassRoutinePage() {
                                   </div>
                                 </div>
                               ) : (
-                                <span className="text-gray-300">-</span>
+                                <span className="text-gray-300">—</span>
                               )}
                             </td>
                           );
                         })}
                       </tr>
-                    );
-                  })}
+                    ))}
                 </tbody>
               </table>
             </div>
