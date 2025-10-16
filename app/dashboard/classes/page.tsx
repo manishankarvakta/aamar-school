@@ -116,8 +116,8 @@ interface SubjectData {
   code: string;
   description?: string;
   school?: {
-    id: string;
-    name: string;
+  id: string;
+  name: string;
   };
   class?: {
     id: string;
@@ -166,7 +166,7 @@ interface StudentData {
   user: {
     firstName: string;
     lastName: string;
-    email: string;
+  email: string;
   };
   rollNumber: string;
   section?: {
@@ -259,7 +259,7 @@ export default function ClassesPage() {
       if (isReload) {
         setReloading(true);
       } else {
-        setLoading(true);
+      setLoading(true);
       }
       setError(null);
 
@@ -365,7 +365,7 @@ export default function ClassesPage() {
       if (isReload) {
         setReloading(false);
       } else {
-        setLoading(false);
+      setLoading(false);
       }
     }
   };
@@ -940,10 +940,10 @@ export default function ClassesPage() {
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-[400px] p-4">
-        <div className="text-center">
+            <div className="text-center">
           <p className="text-red-600 mb-4">{error}</p>
           <Button onClick={() => loadData(true)}>Try Again</Button>
-        </div>
+            </div>
       </div>
     );
   }
@@ -987,60 +987,60 @@ export default function ClassesPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{card.value}</div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
           {/* Classes Tab Filters */}
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
-                  <div className="relative">
-                    <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search classes..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-                <Select value={selectedGrade} onValueChange={setSelectedGrade}>
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="Grade" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {grades.map((grade) => (
-                      <SelectItem key={grade} value={grade}>
-                        {grade}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search classes..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <Select value={selectedGrade} onValueChange={setSelectedGrade}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Grade" />
+              </SelectTrigger>
+              <SelectContent>
+                {grades.map((grade) => (
+                  <SelectItem key={grade} value={grade}>
+                    {grade}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
                 <Select
                   value={selectedBranch}
                   onValueChange={setSelectedBranch}
                 >
-                  <SelectTrigger className="w-[140px]">
+              <SelectTrigger className="w-[140px]">
                     <SelectValue placeholder="Branch" />
-                  </SelectTrigger>
-                  <SelectContent>
+              </SelectTrigger>
+              <SelectContent>
                     {branches.map((branch) => (
                       <SelectItem key={branch} value={branch}>
                         {branch}
                       </SelectItem>
                     ))}
-                  </SelectContent>
-                </Select>
+              </SelectContent>
+            </Select>
                 <Button variant="outline" size="sm">
                   <DownloadIcon className="h-4 w-4 mr-2" />
                   Export
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
+          </div>
+        </CardContent>
+      </Card>
 
           <div className="grid gap-6">
             {filteredClasses.map((cls) => (
@@ -1089,14 +1089,14 @@ export default function ClassesPage() {
                           </p>
                           <p className="font-medium">{cls.totalSubjects}</p>
                         </div>
-                      </div>
+          </div>
 
                       {cls.sections && cls.sections.length > 0 && (
                         <div className="mb-4">
                           <p className="text-sm text-muted-foreground mb-2">
                             Sections:
                           </p>
-                          <div className="flex gap-2">
+            <div className="flex gap-2">
                             {cls.sections.map((section) => (
                               <Badge key={section.id} variant="outline">
                                 {section.name} ({section.students.length}/
@@ -1182,7 +1182,7 @@ export default function ClassesPage() {
                 <div className="flex-1">
                   <div className="relative">
                     <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
+              <Input
                       placeholder="Search sections..."
                       value={sectionSearchTerm}
                       onChange={(e) => setSectionSearchTerm(e.target.value)}
@@ -1196,15 +1196,15 @@ export default function ClassesPage() {
                 >
                   <SelectTrigger className="w-[140px]">
                     <SelectValue placeholder="Class" />
-                  </SelectTrigger>
-                  <SelectContent>
+                </SelectTrigger>
+                <SelectContent>
                     {sectionClasses.map((className) => (
                       <SelectItem key={className} value={className}>
                         {className}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
                 <Select
                   value={selectedSectionBranch}
                   onValueChange={setSelectedSectionBranch}
@@ -1223,8 +1223,8 @@ export default function ClassesPage() {
                 <Button variant="outline" size="sm" onClick={() => setShowAddSectionDialog(true)}>
                   <PlusIcon className="h-4 w-4 mr-2" />
                   Add Section
-                </Button>
-              </div>
+            </Button>
+          </div>
             </CardContent>
           </Card>
 
@@ -1255,8 +1255,8 @@ export default function ClassesPage() {
                         Add Section
                       </Button>
                     )}
-                </div>
-              ) : (
+            </div>
+          ) : (
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -1333,7 +1333,7 @@ export default function ClassesPage() {
                               }
                             >
                               {section.status}
-                            </Badge>
+                        </Badge>
                           </TableCell>
                           <TableCell className="text-right">
                             <DropdownMenu>
@@ -1369,7 +1369,7 @@ export default function ClassesPage() {
                       ))}
                     </TableBody>
                   </Table>
-                </div>
+                      </div>
               )}
             </CardContent>
           </Card>
@@ -1547,26 +1547,26 @@ export default function ClassesPage() {
                     <CardTitle className="text-lg">Basic Information</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div>
+                        <div>
                       <Label className="text-sm font-medium text-muted-foreground">Class Name</Label>
                       <p className="text-lg font-semibold">{selectedClass.name}</p>
-                    </div>
-                    <div>
+                        </div>
+                        <div>
                       <Label className="text-sm font-medium text-muted-foreground">Academic Year</Label>
                       <p className="text-base">{selectedClass.academicYear}</p>
-                    </div>
-                    <div>
+                        </div>
+                        <div>
                       <Label className="text-sm font-medium text-muted-foreground">Branch</Label>
                       <p className="text-base">{selectedClass.branch?.name || "Not assigned"}</p>
-                    </div>
-                    <div>
+                        </div>
+                        <div>
                       <Label className="text-sm font-medium text-muted-foreground">Branch Address</Label>
                       <p className="text-base">{selectedClass.branch?.address || "N/A"}</p>
-                    </div>
+                        </div>
                     <div>
                       <Label className="text-sm font-medium text-muted-foreground">Branch Phone</Label>
                       <p className="text-base">{selectedClass.branch?.phone || "N/A"}</p>
-                    </div>
+                      </div>
                   </CardContent>
                 </Card>
 
@@ -1608,8 +1608,8 @@ export default function ClassesPage() {
                               {selectedClass.teacher.subjects.map((subject, index) => (
                                 <Badge key={index} variant="secondary" className="text-xs">
                                   {subject}
-                                </Badge>
-                              ))}
+                          </Badge>
+                        ))}
                             </div>
                           </div>
                         )}
@@ -1622,7 +1622,7 @@ export default function ClassesPage() {
                     )}
                   </CardContent>
                 </Card>
-              </div>
+                      </div>
 
               {/* Statistics */}
               <Card>
@@ -1670,7 +1670,7 @@ export default function ClassesPage() {
                             </div>
                             <Badge variant={section.students.length >= section.capacity ? "destructive" : "default"}>
                               {section.students.length}/{section.capacity}
-                            </Badge>
+                          </Badge>
                           </div>
                           
                           {section.students.length > 0 && (
@@ -1691,9 +1691,9 @@ export default function ClassesPage() {
                                       <p className="text-xs text-muted-foreground">Roll: {student.rollNumber}</p>
                                     </div>
                                   </div>
-                                ))}
-                              </div>
-                            </div>
+                        ))}
+                      </div>
+                    </div>
                           )}
                         </div>
                       ))}
@@ -1729,14 +1729,14 @@ export default function ClassesPage() {
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button variant="outline" onClick={() => setShowViewDialog(false)}>
                   Close
-                </Button>
+                      </Button>
                 <Button onClick={() => {
                   setShowViewDialog(false);
                   handleEditClass(selectedClass);
                 }}>
                   <EditIcon className="h-4 w-4 mr-2" />
                   Edit Class
-                </Button>
+                      </Button>
               </div>
             </div>
           )}
@@ -1836,7 +1836,7 @@ export default function ClassesPage() {
             <div className="flex justify-end gap-2 pt-4 border-t">
               <Button variant="outline" onClick={() => setShowAddDialog(false)}>
                 Cancel
-              </Button>
+                      </Button>
               <Button onClick={handleSaveAdd} disabled={loading}>
                 {loading ? (
                   <>
@@ -1846,9 +1846,9 @@ export default function ClassesPage() {
                 ) : (
                   "Create Class"
                 )}
-              </Button>
-            </div>
-          </div>
+                      </Button>
+                    </div>
+                  </div>
         </DialogContent>
       </Dialog>
 
@@ -1863,8 +1863,8 @@ export default function ClassesPage() {
               {error && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                   <p className="text-sm text-red-600">{error}</p>
-                </div>
-              )}
+            </div>
+          )}
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -1947,9 +1947,9 @@ export default function ClassesPage() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Current Subjects:</span>
                     <span className="font-medium">{selectedClass.totalSubjects}</span>
-                  </div>
-                </CardContent>
-              </Card>
+              </div>
+            </CardContent>
+          </Card>
 
               {/* Actions */}
               <div className="flex justify-end gap-2 pt-4 border-t">
@@ -2044,7 +2044,7 @@ export default function ClassesPage() {
             {addSectionError && (
               <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-sm text-red-600">{addSectionError}</p>
-              </div>
+    </div>
             )}
             <div className="space-y-2">
               <Label htmlFor="section-name">Section Name *</Label>

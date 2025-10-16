@@ -25,34 +25,65 @@ async function main() {
 
   // Clear existing data in correct order
   console.log("🧹 Cleaning up existing data...");
-  await prisma.activityLog.deleteMany();
-  await prisma.announcement.deleteMany();
-  await prisma.transaction.deleteMany();
-  await prisma.account.deleteMany();
-  await prisma.examResult.deleteMany();
-  await prisma.examSubject.deleteMany();
-  await prisma.exam.deleteMany();
-  await prisma.bookBorrowing.deleteMany();
-  await prisma.book.deleteMany();
-  await prisma.route.deleteMany();
-  await prisma.vehicle.deleteMany();
-  await prisma.fee.deleteMany();
-  await prisma.attendance.deleteMany();
-  await prisma.timetable.deleteMany();
-  await prisma.lesson.deleteMany();
-  await prisma.chapter.deleteMany();
-  await prisma.subject.deleteMany();
-  await prisma.student.deleteMany();
-  await prisma.parent.deleteMany();
-  await prisma.teacher.deleteMany();
-  await prisma.staff.deleteMany();
-  await prisma.section.deleteMany();
-  await prisma.class.deleteMany();
-  await prisma.profile.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.branch.deleteMany();
-  await prisma.school.deleteMany();
-  console.log("✅ Database cleaned up successfully!");
+  
+  try {
+    // Use raw SQL to truncate all tables and cascade delete
+    // This is more reliable than deleteMany when dealing with complex foreign keys
+    await prisma.$executeRaw`
+      DO $$ 
+      DECLARE 
+        r RECORD;
+      BEGIN
+        -- Disable triggers temporarily
+        FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP
+          EXECUTE 'TRUNCATE TABLE ' || quote_ident(r.tablename) || ' CASCADE;';
+        END LOOP;
+      END $$;
+    `;
+    
+    console.log("✅ Database cleaned up successfully!");
+  } catch (error: any) {
+    console.error("⚠️  Error during cleanup, trying alternative method:", error.message);
+    
+    // Fallback: Delete in order to respect foreign key constraints
+    try {
+      await prisma.activityLog.deleteMany();
+      await prisma.announcement.deleteMany();
+      await prisma.transaction.deleteMany();
+      await prisma.account.deleteMany();
+      await prisma.examResult.deleteMany();
+      await prisma.examSubject.deleteMany();
+      await prisma.exam.deleteMany();
+      await prisma.bookBorrowing.deleteMany();
+      await prisma.book.deleteMany();
+      await prisma.route.deleteMany();
+      await prisma.vehicle.deleteMany();
+      await prisma.fee.deleteMany();
+      await prisma.attendance.deleteMany();
+      await prisma.timetable.deleteMany();
+      await prisma.routineSlot.deleteMany();
+      await prisma.classRoutine.deleteMany();
+      await prisma.lesson.deleteMany();
+      await prisma.chapter.deleteMany();
+      await prisma.subject.deleteMany();
+      await prisma.settings.deleteMany();
+      await prisma.student.deleteMany();
+      await prisma.parent.deleteMany();
+      await prisma.teacher.deleteMany();
+      await prisma.staff.deleteMany();
+      await prisma.section.deleteMany();
+      await prisma.class.deleteMany();
+      await prisma.profile.deleteMany();
+      await prisma.user.deleteMany();
+      await prisma.branch.deleteMany();
+      await prisma.school.deleteMany();
+      
+      console.log("✅ Database cleaned up successfully with fallback method!");
+    } catch (fallbackError: any) {
+      console.error("❌ Fallback cleanup also failed:", fallbackError.message);
+      throw fallbackError;
+    }
+  }
 
   // Create School
   const school = await prisma.school.create({

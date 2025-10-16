@@ -46,8 +46,17 @@ function generateSchoolCode(schoolName: string): string {
 }
 
 export async function registerSchoolAndAdmin(
+  prevState: any,
   formData: FormData
 ) {
+  // Handle null formData
+  if (!formData) {
+    return {
+      success: false,
+      message: 'No form data received',
+    };
+  }
+
   const data = Object.fromEntries(formData.entries());
 
   const parsed = registerSchema.safeParse(data);
