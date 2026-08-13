@@ -877,19 +877,25 @@ export function AdmissionForm({ open, onOpenChange, onSuccess }: AdmissionFormPr
                       Student Details
                     </h4>
                     <div className="space-y-3 text-sm">
-                      <div className="flex items-center gap-2">
-                        {photoPreview && (
-                          <Image
-                            src={photoPreview}
-                            alt="Student"
-                            className="w-16 h-16 rounded-full object-cover border-2 border-gray-200"
-                            fill
-                            unoptimized
-                          />
+                      <div className="flex flex-col items-center text-center mb-6">
+                        {photoPreview ? (
+                          <div className="relative w-24 h-24 overflow-hidden rounded-full border-2 border-gray-200 mb-2">
+                            <Image
+                              src={photoPreview}
+                              alt="Student"
+                              className="object-cover"
+                              fill
+                              unoptimized
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-24 h-24 rounded-full border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center mb-2">
+                            <UserIcon className="h-10 w-10 text-gray-400" />
+                          </div>
                         )}
                         <div>
-                          <p className="font-medium">{formData.studentFirstName} {formData.studentLastName}</p>
-                          <p className="text-muted-foreground">{formData.studentEmail}</p>
+                          <p className="font-semibold text-base">{formData.studentFirstName} {formData.studentLastName}</p>
+                          <p className="text-sm text-muted-foreground">{formData.studentEmail}</p>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2">

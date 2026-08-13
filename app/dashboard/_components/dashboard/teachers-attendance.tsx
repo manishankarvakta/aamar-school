@@ -7,12 +7,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CalendarIcon, Download } from "lucide-react";
 import * as React from "react";
 
-const attendanceStats = [
-  { label: "Teachers Present", value: "82", color: "text-green-600" },
-  { label: "Teachers Absent", value: "7", color: "text-red-600" },
-  { label: "Late arrivals", value: "3", color: "text-yellow-600" },
-];
-
 const StatCard = ({ label, value, color }: { label: string; value: string; color: string }) => (
   <div className="bg-gray-50 rounded-lg p-3 border border-gray-100">
     <p className="text-xs text-muted-foreground mb-1">{label}</p>
@@ -20,8 +14,23 @@ const StatCard = ({ label, value, color }: { label: string; value: string; color
   </div>
 );
 
-export function TeachersAttendance() {
-  const [date, setDate] = React.useState<Date | undefined>(new Date("2024-12-07"));
+export function TeachersAttendance({
+  present = 0,
+  absent = 0,
+  late = 0,
+}: {
+  present?: number;
+  absent?: number;
+  late?: number;
+}) {
+  const [date, setDate] = React.useState<Date | undefined>(new Date());
+  
+  const attendanceStats = [
+    { label: "Teachers Present", value: present.toLocaleString(), color: "text-green-600" },
+    { label: "Teachers Absent", value: absent.toLocaleString(), color: "text-red-600" },
+    { label: "Late arrivals", value: late.toLocaleString(), color: "text-yellow-600" },
+  ];
+
   
   return (
     <Card className="">

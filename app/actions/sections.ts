@@ -180,6 +180,11 @@ export async function getSections() {
             },
           },
         },
+        students: {
+          include: {
+            user: true,
+          },
+        },
         _count: {
           select: {
             students: true,
@@ -219,6 +224,12 @@ export async function getSections() {
       },
       status:
         section._count.students >= section.capacity ? "Full" : "Available",
+      students: section.students.map((student) => ({
+        id: student.id,
+        name: `${student.user.firstName} ${student.user.lastName}`,
+        rollNumber: student.rollNumber,
+        email: student.user.email,
+      })),
     }));
 
     return {

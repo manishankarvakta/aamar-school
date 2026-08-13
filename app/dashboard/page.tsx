@@ -2,7 +2,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StudentsOverview } from "./_components/dashboard/students-overview";
 import { TeachersOverview } from "./_components/dashboard/teachers-overview";
 import { getSubjects, getSubjectStats } from "@/app/actions/subjects";
-import { getTeacherStats } from "@/app/actions/teachers";
+import { getTeacherStats, getTopTeachers } from "@/app/actions/teachers";
+import { getStudentStats } from "@/app/actions/students";
+import {
+  getAttendanceStats,
+  getTeacherAttendanceStats,
+  getStudentsOnLeaveToday,
+  getTeachersOnLeaveToday,
+  getDetailedTeachersOnLeave,
+} from "@/app/actions/attendance";
+import { getPerformanceStats } from "@/app/actions/exams";
+import { getAnnouncements, getTeacherAnnouncements } from "@/app/actions/announcements";
 import { OverallAttendance } from "./_components/dashboard/overall-attendance";
 import { Announcements } from "./_components/dashboard/announcements";
 import { Performance } from "./_components/dashboard/performance";
@@ -22,32 +32,88 @@ const icons = [
 ];
 
 export default async function DashboardPage() {
-  // Fetch data in parallel
-  const [subjectsResult, subjectStatsResult, teacherStatsResult] = await Promise.all([
+  const todayStr = new Date().toISOString().split("T")[0];
+
+  // Fetch all dashboard data in parallel
+  const [
+    subjectsResult,
+    subjectStatsResult,
+    teacherStatsResult,
+    studentStatsResult,
+    studentAttendanceStatsResult,
+    teacherAttendanceStatsResult,
+    studentsOnLeaveResult,
+    teachersOnLeaveResult,
+    detailedTeachersOnLeaveResult,
+    performanceStatsResult,
+    topTeachersResult,
+    announcementsResult,
+    teacherAnnouncementsResult,
+  ] = await Promise.all([
     getSubjects(),
     getSubjectStats(),
     getTeacherStats(),
+    getStudentStats(),
+    getAttendanceStats(todayStr),
+    getTeacherAttendanceStats(todayStr),
+    getStudentsOnLeaveToday(),
+    getTeachersOnLeaveToday(),
+    getDetailedTeachersOnLeave(),
+    getPerformanceStats(),
+    getTopTeachers(),
+    getAnnouncements(),
+    getTeacherAnnouncements(),
   ]);
 
   // Extract data safely
-  const totalStudents = subjectsResult.success
+  const totalStudents = subjectsResult.success && subjectsResult.data
     ? subjectsResult.data.reduce((sum: number, s: any) => sum + (s.class?.studentCount || 0), 0)
     : 0;
-  const totalSubjects = subjectStatsResult.success ? subjectStatsResult.data.totalSubjects : 0;
+  
   const totalTeachers = teacherStatsResult.success && teacherStatsResult.data && typeof teacherStatsResult.data === 'object' && 'totalTeachers' in teacherStatsResult.data
     ? teacherStatsResult.data.totalTeachers
     : 0;
+  
   const activeTeachers = teacherStatsResult.success && teacherStatsResult.data && typeof teacherStatsResult.data === 'object' && 'activeTeachers' in teacherStatsResult.data
     ? teacherStatsResult.data.activeTeachers
     : 0;
+
+  const studentStats = studentStatsResult.success && studentStatsResult.data
+    ? {
+        totalStudents: studentStatsResult.data.totalStudents,
+        newAdmissions: studentStatsResult.data.recentAdmissions,
+        dropouts: 0,
+        boys: studentStatsResult.data.maleStudents,
+        girls: studentStatsResult.data.femaleStudents,
+      }
+    : { totalStudents: totalStudents || 0, newAdmissions: 0, dropouts: 0, boys: 0, girls: 0 };
+
+  const studentAttendance = studentAttendanceStatsResult.success
+    ? studentAttendanceStatsResult.stats
+    : { presentToday: 0, absentToday: 0, lateToday: 0 };
+
+  const studentsOnLeave = studentsOnLeaveResult.success && studentsOnLeaveResult.data ? studentsOnLeaveResult.data : [];
+  const generalAnnouncements = announcementsResult.success && announcementsResult.data ? announcementsResult.data : [];
+
+  const performanceStats = performanceStatsResult.success && performanceStatsResult.data
+    ? performanceStatsResult.data
+    : { averagePercentage: 85, grade: "Excellent" };
+
+  // Teacher specific stats
+  const teachersOnLeaveCount = teachersOnLeaveResult.success && teachersOnLeaveResult.data ? teachersOnLeaveResult.data.length : 0;
+  
+  const teacherAttendance = teacherAttendanceStatsResult.success
+    ? teacherAttendanceStatsResult.stats
+    : { presentToday: 0, absentToday: 0, lateToday: 0 };
+
+  const topTeachersList = topTeachersResult.success && topTeachersResult.data ? topTeachersResult.data : [];
+  const detailedTeachersOnLeave = detailedTeachersOnLeaveResult.success && detailedTeachersOnLeaveResult.data ? detailedTeachersOnLeaveResult.data : [];
+  const staffAnnouncements = teacherAnnouncementsResult.success && teacherAnnouncementsResult.data ? teacherAnnouncementsResult.data : [];
 
   return (
     <div className="flex-1 space-y-3">
       <Tabs defaultValue="students" className="space-y-3">
         <div className="relative px-6 overflow-hidden pt-4">
-          {/* {icons.map(({ Icon, props }, index) => (
-            <Icon key={index} {...props} />
-          ))} */}
           <div className="relative z-10">
             <div className="flex items-start justify-between">
               <div className="mb-3">
@@ -65,32 +131,57 @@ export default async function DashboardPage() {
         <TabsContent value="students" className="space-y-3 px-4 md:px-6 mt-[-80px] z-10 pb-[150px]">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
             <div className="lg:col-span-2 space-y-3">
-              <StudentsOverview totalStudents={totalStudents} totalSubjects={totalSubjects} />
-              <OverallAttendance />
+              <StudentsOverview
+                totalStudents={studentStats.totalStudents}
+                newAdmissions={studentStats.newAdmissions}
+                dropouts={studentStats.dropouts}
+                boys={studentStats.boys}
+                girls={studentStats.girls}
+              />
+              <OverallAttendance
+                present={studentAttendance.presentToday}
+                absent={studentAttendance.absentToday}
+                late={studentAttendance.lateToday}
+              />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <Performance />
+                <Performance
+                  boys={studentStats.boys}
+                  girls={studentStats.girls}
+                  averagePercentage={performanceStats.averagePercentage}
+                  grade={performanceStats.grade}
+                />
                 <DashboardCalendar />
               </div>
             </div>
             <div className="lg:col-span-1 space-y-3">
-              <OnLeave />
-              <Announcements />
+              <OnLeave onLeaveStaff={studentsOnLeave} />
+              <Announcements announcementsList={generalAnnouncements} />
             </div>
           </div>
         </TabsContent>
         <TabsContent value="teachers" className="space-y-3 px-4 md:px-6 mt-[-80px] z-10 pb-[150px]">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
             <div className="lg:col-span-2 space-y-3">
-              <TeachersOverview totalTeachers={totalTeachers} activeTeachers={activeTeachers} />
-              <TeachersAttendance />
+              <TeachersOverview
+                totalTeachers={totalTeachers}
+                activeTeachers={activeTeachers}
+                onLeave={teachersOnLeaveCount}
+                fullTime={totalTeachers}
+                partTime={0}
+              />
+              <TeachersAttendance
+                present={teacherAttendance.presentToday}
+                absent={teacherAttendance.absentToday}
+                late={teacherAttendance.lateToday}
+              />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <TeachersPerformance />
+                <TeachersPerformance performanceDataList={topTeachersList} />
                 <DashboardCalendar />
               </div>
             </div>
             <div className="lg:col-span-1 space-y-3">
-              <TeachersOnLeave />
-              <TeachersAnnouncements />
+              <TeachersOnLeave teachersOnLeaveList={detailedTeachersOnLeave} />
+              <TeachersAnnouncements announcementsList={staffAnnouncements} />
             </div>
           </div>
         </TabsContent>

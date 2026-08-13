@@ -3,7 +3,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-const StatCard = ({ label, value, change, changeType }: { label: string; value: string; change?: string; changeType?: "increase" | "decrease" }) => (
+const StatCard = ({ label, value, change, changeType }: { label: string; value: string | number; change?: string; changeType?: "increase" | "decrease" }) => (
   <div className="flex flex-col p-3">
     <p className="text-xs text-muted-foreground mb-1">{label}</p>
     <div className="flex items-center gap-1">

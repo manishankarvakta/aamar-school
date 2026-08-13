@@ -855,7 +855,7 @@ export default function TeachersPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-sm font-medium">Employee ID</Label>
-                      <p className="text-sm font-mono">{teacherDetails.teacher.employeeId || 'N/A'}</p>
+                      <p className="text-sm font-mono">{teacherDetails.employeeId || 'N/A'}</p>
                     </div>
                     <div>
                       <Label className="text-sm font-medium">Experience</Label>
@@ -913,13 +913,27 @@ export default function TeachersPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label className="text-sm font-medium">Total Classes</Label>
-                        <p className="text-sm">{teacherDetails.teacher.totalClasses || 0} classes</p>
+                        <p className="text-sm">{teacherDetails.classes?.length || 0} classes</p>
                       </div>
                       <div>
                         <Label className="text-sm font-medium">Total Subjects</Label>
-                        <p className="text-sm">{teacherDetails?.professional?.subjects?.length} subjects</p>
+                        <p className="text-sm">{teacherDetails?.professional?.subjects?.length || 0} subjects</p>
                       </div>
                     </div>
+
+                    {/* Classes list */}
+                    {teacherDetails.classes && teacherDetails.classes.length > 0 && (
+                      <div className="mt-3">
+                        <Label className="text-sm font-medium">Assigned Classes</Label>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {teacherDetails.classes.map((cls: any) => (
+                            <Badge key={cls.id} variant="outline" className="text-xs">
+                              {cls.name} ({cls.studentCount} students)
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Quick Stats */}
@@ -932,13 +946,13 @@ export default function TeachersPage() {
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-green-600">
-                        {teacherDetails.teacher.totalClasses || 0}
+                        {teacherDetails.classes?.length || 0}
                       </div>
                       <p className="text-xs text-muted-foreground">Classes</p>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-orange-600">
-                        {teacherDetails.professional.subjects.length}
+                        {teacherDetails.professional.subjects?.length || 0}
                       </div>
                       <p className="text-xs text-muted-foreground">Subjects</p>
                     </div>

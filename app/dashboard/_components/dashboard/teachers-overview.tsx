@@ -3,7 +3,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
-const StatCard = ({ label, value, change, changeType }: { label: string; value: string; change?: string; changeType?: "increase" | "decrease" }) => (
+const StatCard = ({ label, value, change, changeType }: { label: string; value: string | number; change?: string; changeType?: "increase" | "decrease" }) => (
   <div className="flex flex-col p-3">
     <p className="text-xs text-muted-foreground mb-1">{label}</p>
     <div className="flex items-center gap-1">
@@ -24,32 +24,32 @@ const StatCard = ({ label, value, change, changeType }: { label: string; value: 
 
 export function TeachersOverview({
   totalTeachers = "89",
-  newHires = "12",
+  activeTeachers = "77",
   onLeave = "7",
   fullTime = "76",
   partTime = "13",
   teachersChange = "+5%",
-  newHiresChange = "+15%",
+  activeTeachersChange = "+15%",
   onLeaveChange = "-2%",
   teachersChangeType = "increase",
-  newHiresChangeType = "increase",
+  activeTeachersChangeType = "increase",
   onLeaveChangeType = "decrease",
 } : {
   totalTeachers?: string | number;
-  newHires?: string | number;
+  activeTeachers?: string | number;
   onLeave?: string | number;
   fullTime?: string | number;
   partTime?: string | number;
   teachersChange?: string;
-  newHiresChange?: string;
+  activeTeachersChange?: string;
   onLeaveChange?: string;
   teachersChangeType?: "increase" | "decrease";
-  newHiresChangeType?: "increase" | "decrease";
+  activeTeachersChangeType?: "increase" | "decrease";
   onLeaveChangeType?: "increase" | "decrease";
 }) {
   const stats = [
     { label: "Total Teachers", value: totalTeachers, change: teachersChange, changeType: teachersChangeType },
-    { label: "New Hires", value: newHires, change: newHiresChange, changeType: newHiresChangeType },
+    { label: "Active Teachers", value: activeTeachers, change: activeTeachersChange, changeType: activeTeachersChangeType },
     { label: "On Leave", value: onLeave, change: onLeaveChange, changeType: onLeaveChangeType },
     { label: "Full-time", value: fullTime },
     { label: "Part-time", value: partTime },

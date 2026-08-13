@@ -73,7 +73,7 @@ import {
   getLessonsByChapter,
 } from "@/app/actions/subjects";
 import { getClasses } from "@/app/actions/classes";
-import { getTeacherStats } from '@/app/actions/teachers';
+import { getTeacherStats, getAllTeachers } from '@/app/actions/teachers';
 
 interface SubjectData {
   id: string;
@@ -208,6 +208,7 @@ export default function SubjectsPage() {
   const [subjects, setSubjects] = useState<SubjectData[]>([]);
   const [stats, setStats] = useState<StatsData | null>(null);
   const [classes, setClasses] = useState<ClassData[]>([]);
+  const [teachersList, setTeachersList] = useState<Array<{ id: string; name: string }>>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [filteredSubjects, setFilteredSubjects] = useState<SubjectData[]>([]);
@@ -220,6 +221,7 @@ export default function SubjectsPage() {
     description: "",
     schoolId: "",
     classId: "",
+    teacherId: "",
   });
 
   const [editForm, setEditForm] = useState({
@@ -295,11 +297,12 @@ export default function SubjectsPage() {
       setLoading(true);
       setError(null);
 
-      const [subjectsResult, statsResult, classesResult, teacherStatsResult] = await Promise.all([
+      const [subjectsResult, statsResult, classesResult, teacherStatsResult, teachersResult] = await Promise.all([
         getSubjects(),
         getSubjectStats(),
         getClasses(),
         getTeacherStats(),
+        getAllTeachers(),
       ]);
 
       console.log("subjectsResult", subjectsResult);
@@ -354,6 +357,10 @@ export default function SubjectsPage() {
         }));
         setClasses(transformedClasses);
       }
+
+      if (teachersResult.success) {
+        setTeachersList(teachersResult.data || []);
+      }
     } catch (err) {
       console.error("Error loading data:", err);
       setError(err instanceof Error ? err.message : "Failed to load data");
@@ -383,6 +390,7 @@ export default function SubjectsPage() {
       formData.append("description", addForm.description);
       formData.append("schoolId", addForm.schoolId || "default-school-id");
       formData.append("classId", addForm.classId);
+      formData.append("teacherId", addForm.teacherId);
 
       const result = await createSubject(formData);
 
@@ -395,6 +403,7 @@ export default function SubjectsPage() {
           description: "",
           schoolId: "",
           classId: "",
+          teacherId: "",
         });
       } else {
         throw new Error(result.message || "Failed to create subject");
@@ -1500,7 +1509,7 @@ export default function SubjectsPage() {
                   <Label htmlFor="class">Class</Label>
                   <Select
                     onValueChange={(value) =>
-                      setAddForm({ ...addForm, schoolId: value })
+                      setAddForm({ ...addForm, classId: value })
                     }
                   >
                     <SelectTrigger>
@@ -1516,17 +1525,28 @@ export default function SubjectsPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="teacher">Teacher</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select teacher" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {/* Add teacher selection logic */}
-                    </SelectContent>
-                  </Select>
-                </div>
+                {teachersList.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="teacher">Teacher</Label>
+                    <Select
+                      value={addForm.teacherId}
+                      onValueChange={(value) =>
+                        setAddForm({ ...addForm, teacherId: value })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select teacher" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {teachersList.map((teacher) => (
+                          <SelectItem key={teacher.id} value={teacher.id}>
+                            {teacher.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="credits">Credit Hours</Label>
                   <Input

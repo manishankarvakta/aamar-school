@@ -20,7 +20,7 @@ export async function createSubject(formData: FormData): Promise<SubjectResult> 
       name: formData.get('name') as string,
       code: formData.get('code') as string,
       description: formData.get('description') as string,
-      schoolId: formData.get('schoolId') as string,
+      schoolId: session.schoolId,
       classId: formData.get('classId') as string,
       aamarId: aamarId,
     };
@@ -47,7 +47,6 @@ export async function createSubject(formData: FormData): Promise<SubjectResult> 
         message: 'Subject code already exists in this class'
       };
     }
-
     // Create subject
     const subject = await prisma.subject.create({
       data: {
@@ -59,6 +58,27 @@ export async function createSubject(formData: FormData): Promise<SubjectResult> 
         aamarId: aamarId,
       }
     });
+
+    // Handle teacher assignment if teacherId is provided
+    const teacherId = formData.get('teacherId') as string;
+    if (teacherId && teacherId !== 'default-teacher-id' && teacherId !== '') {
+      const teacher = await prisma.teacher.findUnique({
+        where: { id: teacherId }
+      });
+      if (teacher) {
+        const currentSubjects = teacher.subjects || [];
+        if (!currentSubjects.includes(data.name)) {
+          await prisma.teacher.update({
+            where: { id: teacherId },
+            data: {
+              subjects: {
+                set: [...currentSubjects, data.name]
+              }
+            }
+          });
+        }
+      }
+    }
 
     revalidatePath('/dashboard/subjects');
 

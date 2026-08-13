@@ -2,41 +2,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Star, TrendingUp, Award, Users } from "lucide-react";
 
-const performanceData = [
-  {
-    name: "Dr. Sarah Johnson",
-    department: "Mathematics",
-    rating: 4.8,
-    students: 156,
-    improvement: "+0.2",
-    status: "Excellent"
-  },
-  {
-    name: "Prof. Michael Chen", 
-    department: "Physics",
-    rating: 4.6,
-    students: 134,
-    improvement: "+0.1",
-    status: "Very Good"
-  },
-  {
-    name: "Dr. Emily Rodriguez",
-    department: "Chemistry", 
-    rating: 4.9,
-    students: 142,
-    improvement: "+0.3",
-    status: "Outstanding"
-  },
-  {
-    name: "Ms. Lisa Thompson",
-    department: "English",
-    rating: 4.4,
-    students: 98,
-    improvement: "-0.1",
-    status: "Good"
-  }
-];
-
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'Outstanding': return 'bg-green-100 text-green-800';
@@ -47,7 +12,22 @@ const getStatusColor = (status: string) => {
   }
 };
 
-export function TeachersPerformance() {
+export function TeachersPerformance({
+  performanceDataList = [],
+}: {
+  performanceDataList?: Array<{
+    name: string;
+    department: string;
+    rating: number;
+    students: number;
+    improvement: string;
+    status: string;
+  }>;
+}) {
+  const averageRating = performanceDataList.length > 0
+    ? (performanceDataList.reduce((sum, t) => sum + t.rating, 0) / performanceDataList.length).toFixed(1)
+    : "0.0";
+
   return (
     <Card>
       <CardHeader className="pb-4">
@@ -55,44 +35,48 @@ export function TeachersPerformance() {
           <CardTitle className="text-lg font-semibold">Teacher Performance</CardTitle>
           <div className="flex items-center text-xs text-green-600">
             <TrendingUp className="h-3 w-3 mr-1" />
-            Avg. 4.7/5.0
+            Avg. {averageRating}/5.0
           </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        <div className="space-y-4">
-          {performanceData.map((teacher, index) => (
-            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                  <span className="text-xs font-medium text-gray-700">
-                    {teacher.name.split(' ').map(n => n[0]).join('')}
-                  </span>
+        {performanceDataList.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-4">No teacher data available.</p>
+        ) : (
+          <div className="space-y-4">
+            {performanceDataList.map((teacher, index) => (
+              <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                    <span className="text-xs font-medium text-gray-700">
+                      {teacher.name.split(' ').map(n => n[0]).join('')}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">{teacher.name}</p>
+                    <p className="text-xs text-muted-foreground">{teacher.department}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-medium text-sm">{teacher.name}</p>
-                  <p className="text-xs text-muted-foreground">{teacher.department}</p>
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center">
+                    <Users className="h-3 w-3 text-muted-foreground mr-1" />
+                    <span className="text-xs text-muted-foreground">{teacher.students}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Star className="h-3 w-3 text-yellow-500 mr-1" />
+                    <span className="text-xs font-medium">{teacher.rating}</span>
+                    <span className={`text-xs ml-1 ${teacher.improvement.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
+                      {teacher.improvement}
+                    </span>
+                  </div>
+                  <Badge className={getStatusColor(teacher.status)}>
+                    {teacher.status}
+                  </Badge>
                 </div>
               </div>
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center">
-                  <Users className="h-3 w-3 text-muted-foreground mr-1" />
-                  <span className="text-xs text-muted-foreground">{teacher.students}</span>
-                </div>
-                <div className="flex items-center">
-                  <Star className="h-3 w-3 text-yellow-500 mr-1" />
-                  <span className="text-xs font-medium">{teacher.rating}</span>
-                  <span className={`text-xs ml-1 ${teacher.improvement.startsWith('+') ? 'text-green-600' : 'text-red-600'}`}>
-                    {teacher.improvement}
-                  </span>
-                </div>
-                <Badge className={getStatusColor(teacher.status)}>
-                  {teacher.status}
-                </Badge>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
         <div className="mt-4 p-3 bg-blue-50 rounded-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center">

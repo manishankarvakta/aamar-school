@@ -152,6 +152,12 @@ interface SectionData {
     teacher: string;
   };
   status: string;
+  students?: Array<{
+    id: string;
+    name: string;
+    rollNumber: string;
+    email: string;
+  }>;
 }
 
 interface StatsData {
@@ -1125,12 +1131,7 @@ export default function ClassesPage() {
                           <EditIcon className="h-4 w-4 mr-2" />
                           Edit Class
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleManageStudents(cls)}
-                        >
-                          <UsersIcon className="h-4 w-4 mr-2" />
-                          Manage Students
-                        </DropdownMenuItem>
+
                         <DropdownMenuItem
                           onClick={() => handleViewTimetable(cls)}
                         >
@@ -1250,7 +1251,7 @@ export default function ClassesPage() {
                   {!sectionSearchTerm &&
                     selectedSectionClass === "All Classes" &&
                     selectedSectionBranch === "All Branches" && (
-                      <Button>
+                      <Button onClick={() => setShowAddSectionDialog(true)}>
                         <PlusIcon className="h-4 w-4 mr-2" />
                         Add Section
                       </Button>
