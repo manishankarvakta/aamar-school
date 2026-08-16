@@ -72,7 +72,7 @@ export async function deleteClassRoutine(id: string): Promise<ClassRoutineResult
         message: 'The specified class routine was not found',
       };
     }
-    await prisma.classRoutine.delete({ where: { id, aamarId: session.aamarId } });
+    await prisma.classRoutine.delete({ where: { id } });
     return {
       success: true,
       message: 'ClassRoutine deleted successfully',
@@ -136,7 +136,7 @@ export async function upsertClassRoutine({
       // Delete old slots and recreate (simplest for grid update)
       await prisma.routineSlot.deleteMany({ where: { classRoutineId: existing.id, aamarId: session.aamarId } });
       const updated = await prisma.classRoutine.update({
-        where: { id: existing.id, aamarId: session.aamarId },
+        where: { id: existing.id },
         data: {
           classId,
           academicYear,

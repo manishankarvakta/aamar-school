@@ -313,7 +313,7 @@ export default function ClassRoutingEditPage() {
 
   // Recompute time slots for each day when assignments or settings change
   useEffect(() => {
-    if (!days.length || !subjects.length) return;
+    if (!days.length) return;
     // Find schedule for each day
     const schedule = days.map((day, i) => ({
       day,
@@ -324,7 +324,7 @@ export default function ClassRoutingEditPage() {
     let start = "08:00";
     let end = "14:00";
     let duration = 45;
-    if (subjects.length > 0 && timeSlots.length > 0) {
+    if (timeSlots.length > 0) {
       // Use first slot as base
       const [firstStart, firstEnd] = timeSlots[0].split("-");
       start = firstStart;
