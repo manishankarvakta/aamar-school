@@ -39,7 +39,7 @@ import {
   deleteTeacher,
   getTeacherStats
 } from '@/app/actions/teachers';
-import { getBranchesByAamarId } from '@/app/actions/branches';
+import { useBranch } from '@/contexts/branch-context';
 
 interface Teacher {
   id: string;
@@ -83,11 +83,9 @@ export default function TeachersPage() {
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [branches, setBranches] = useState<any[]>([]);
-  const [branchLoading, setBranchLoading] = useState(false);
 
-
-  console.log("branches",branches);
+  // Use global branch context from header
+  const { selectedBranchId, branches, loading: branchLoading } = useBranch();
   
   // Pagination state (like parents page)
   const [currentPage, setCurrentPage] = useState(1);
@@ -98,28 +96,11 @@ export default function TeachersPage() {
   const [branchFilter, setBranchFilter] = useState('all');
 
 
-  // Fetch branches by aamarId on mount
-  useEffect(() => {
-    async function fetchBranches() {
-      setBranchLoading(true);
-      const result = await getBranchesByAamarId();
-      console.log("result",result);
-      if (result.success && Array.isArray(result.data)) {
-        setBranches(result.data);
-      } else if (result.success && result.data) {
-        setBranches([result.data]);
-      } else {
-        setBranches([]);
-      }
-      setBranchLoading(false);
-    }
-    fetchBranches();
-  }, [showAddDialog]);
-
-  // Load teachers and stats
+  // Reload teachers whenever the header branch selection changes
   useEffect(() => {
     loadTeachersData();
-  }, []);
+  }, [selectedBranchId]);
+
 
   // Search and filter effect - main filtering logic (like parents page)
   useEffect(() => {
@@ -221,9 +202,9 @@ export default function TeachersPage() {
     try {
       setLoading(true);
       
-      // Get all teachers at once (no server-side pagination)
+      // Get all teachers filtered by selected branch from header
       const [teachersResult, statsResult] = await Promise.all([
-        getTeachers(1, 100), // Get all teachers
+        getTeachers(1, 100, selectedBranchId), // Pass selectedBranchId from header
         getTeacherStats()
       ]);
 

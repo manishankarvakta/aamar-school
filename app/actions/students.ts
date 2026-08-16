@@ -468,10 +468,16 @@ export async function getStudentsByBranch(branchId: string) {
 }
 
 // Get student statistics
-export async function getStudentStats() {
+export async function getStudentStats(branchId?: string) {
   try {
     // Get session data for multi-tenancy
     const session = await requireAuth();
+    
+    // Base where clause
+    const baseWhere: any = {
+      aamarId: session.aamarId,
+      ...(branchId ? { user: { branchId } } : {})
+    };
     
     const [
       totalStudents,
@@ -483,16 +489,15 @@ export async function getStudentStats() {
     ] = await Promise.all([
       // Total students
       prisma.student.count({
-        where: {
-          aamarId: session.aamarId,
-        },
+        where: baseWhere,
       }),
       
       // Active students (based on user.isActive)
       prisma.student.count({
         where: {
-          aamarId: session.aamarId,
+          ...baseWhere,
           user: {
+            ...baseWhere.user,
             isActive: true,
           },
         },
@@ -501,8 +506,9 @@ export async function getStudentStats() {
       // Male students
       prisma.student.count({
         where: {
-          aamarId: session.aamarId,
+          ...baseWhere,
           user: {
+            ...baseWhere.user,
             profile: {
               gender: 'MALE',
             },
@@ -513,8 +519,9 @@ export async function getStudentStats() {
       // Female students
       prisma.student.count({
         where: {
-          aamarId: session.aamarId,
+          ...baseWhere,
           user: {
+            ...baseWhere.user,
             profile: {
               gender: 'FEMALE',
             },
@@ -525,7 +532,7 @@ export async function getStudentStats() {
       // Students with pending fees
       prisma.student.count({
         where: {
-          aamarId: session.aamarId,
+          ...baseWhere,
           fees: {
             some: {
               status: 'PENDING',
@@ -537,7 +544,7 @@ export async function getStudentStats() {
       // Recent admissions (last 30 days)
       prisma.student.count({
         where: {
-          aamarId: session.aamarId,
+          ...baseWhere,
           admissionDate: {
             gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
           },

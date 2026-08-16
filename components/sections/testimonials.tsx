@@ -48,7 +48,7 @@ export function TestimonialsSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: index * 0.1 }}
-              className="bg-card rounded-xl p-6 shadow-sm"
+              className="bg-card rounded-xl p-6 shadow-sm border border-border/40"
             >
               <div className="flex items-center mb-4">
                 <div className="relative w-12 h-12 rounded-full bg-muted flex items-center justify-center mr-4">
@@ -73,17 +73,17 @@ export function TestimonialsSection() {
           className="mt-16 text-center"
         >
           <div className="flex flex-wrap justify-center gap-8 items-center">
-            <div className="w-32 h-12 bg-muted rounded-lg flex items-center justify-center">
-              <span className="text-muted-foreground">School 1</span>
+            <div className="px-6 py-3 bg-card border border-border/50 rounded-xl flex items-center justify-center shadow-sm hover:border-blue-500/30 transition-all duration-300">
+              <span className="text-sm font-semibold tracking-wider text-muted-foreground/80 dark:text-muted-foreground">Linden Academy</span>
             </div>
-            <div className="w-32 h-12 bg-muted rounded-lg flex items-center justify-center">
-              <span className="text-muted-foreground">School 2</span>
+            <div className="px-6 py-3 bg-card border border-border/50 rounded-xl flex items-center justify-center shadow-sm hover:border-blue-500/30 transition-all duration-300">
+              <span className="text-sm font-semibold tracking-wider text-muted-foreground/80 dark:text-muted-foreground">Apex Prep</span>
             </div>
-            <div className="w-32 h-12 bg-muted rounded-lg flex items-center justify-center">
-              <span className="text-muted-foreground">School 3</span>
+            <div className="px-6 py-3 bg-card border border-border/50 rounded-xl flex items-center justify-center shadow-sm hover:border-blue-500/30 transition-all duration-300">
+              <span className="text-sm font-semibold tracking-wider text-muted-foreground/80 dark:text-muted-foreground">Summit School</span>
             </div>
-            <div className="w-32 h-12 bg-muted rounded-lg flex items-center justify-center">
-              <span className="text-muted-foreground">School 4</span>
+            <div className="px-6 py-3 bg-card border border-border/50 rounded-xl flex items-center justify-center shadow-sm hover:border-blue-500/30 transition-all duration-300">
+              <span className="text-sm font-semibold tracking-wider text-muted-foreground/80 dark:text-muted-foreground">Horizon College</span>
             </div>
           </div>
         </motion.div>

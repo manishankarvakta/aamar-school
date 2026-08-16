@@ -1,4 +1,5 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cookies } from "next/headers";
 import { StudentsOverview } from "./_components/dashboard/students-overview";
 import { TeachersOverview } from "./_components/dashboard/teachers-overview";
 import { getSubjects, getSubjectStats } from "@/app/actions/subjects";
@@ -34,6 +35,10 @@ const icons = [
 export default async function DashboardPage() {
   const todayStr = new Date().toISOString().split("T")[0];
 
+  const cookieStore = await cookies();
+  const selectedBranchId = cookieStore.get('selectedBranchId')?.value || 'all';
+  const branchIdParam = selectedBranchId === 'all' ? undefined : selectedBranchId;
+
   // Fetch all dashboard data in parallel
   const [
     subjectsResult,
@@ -50,19 +55,19 @@ export default async function DashboardPage() {
     announcementsResult,
     teacherAnnouncementsResult,
   ] = await Promise.all([
-    getSubjects(),
-    getSubjectStats(),
-    getTeacherStats(),
-    getStudentStats(),
-    getAttendanceStats(todayStr),
-    getTeacherAttendanceStats(todayStr),
-    getStudentsOnLeaveToday(),
-    getTeachersOnLeaveToday(),
-    getDetailedTeachersOnLeave(),
-    getPerformanceStats(),
-    getTopTeachers(),
-    getAnnouncements(),
-    getTeacherAnnouncements(),
+    getSubjects(branchIdParam),
+    getSubjectStats(branchIdParam),
+    getTeacherStats(branchIdParam),
+    getStudentStats(branchIdParam),
+    getAttendanceStats(todayStr, branchIdParam),
+    getTeacherAttendanceStats(todayStr, branchIdParam),
+    getStudentsOnLeaveToday(branchIdParam),
+    getTeachersOnLeaveToday(branchIdParam),
+    getDetailedTeachersOnLeave(branchIdParam),
+    getPerformanceStats(branchIdParam),
+    getTopTeachers(branchIdParam),
+    getAnnouncements(branchIdParam),
+    getTeacherAnnouncements(branchIdParam),
   ]);
 
   // Extract data safely

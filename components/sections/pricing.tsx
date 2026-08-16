@@ -91,13 +91,13 @@ export function PricingSection() {
             <motion.div
               key={plan.name}
               variants={item}
-              className={`relative bg-card rounded-xl p-8 shadow-sm ${
-                plan.popular ? 'ring-2 ring-primary' : ''
+              className={`relative bg-card rounded-xl p-8 shadow-sm border border-border/40 ${
+                plan.popular ? 'ring-2 ring-blue-600 dark:ring-blue-400' : ''
               }`}
             >
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                  <span className="bg-primary text-primary-foreground text-sm font-medium px-3 py-1 rounded-full">
+                  <span className="bg-blue-600 dark:bg-blue-500 text-white text-sm font-medium px-3 py-1 rounded-full">
                     Most Popular
                   </span>
                 </div>
@@ -113,13 +113,17 @@ export function PricingSection() {
               <ul className="space-y-4 mb-8">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-center">
-                    <CheckIcon className="h-5 w-5 text-primary mr-2" />
+                    <CheckIcon className="h-5 w-5 text-blue-600 dark:text-blue-400 mr-2" />
                     <span>{feature}</span>
                   </li>
                 ))}
               </ul>
               <Button
-                className="w-full"
+                className={`w-full ${
+                  plan.popular
+                    ? 'bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 border-none'
+                    : 'border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-950/20'
+                }`}
                 variant={plan.popular ? 'default' : 'outline'}
               >
                 Get Started
@@ -136,7 +140,7 @@ export function PricingSection() {
         >
           <p className="text-muted-foreground">
             Need a custom plan?{' '}
-            <a href="/contact" className="text-primary hover:underline">
+            <a href="/contact" className="text-blue-600 dark:text-blue-400 font-medium hover:underline">
               Contact us
             </a>{' '}
             for a tailored solution.

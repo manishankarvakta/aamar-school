@@ -78,21 +78,23 @@ export async function getAttendanceFilters() {
 }
 
 // Fetch attendance stats for a date
-export async function getAttendanceStats(dateStr: string) {
+export async function getAttendanceStats(dateStr: string, branchId?: string) {
   try {
     const session = await requireAuth();
     const { start, end } = getDayRange(dateStr);
 
+    const baseWhereStudent = branchId ? { user: { branchId } } : {};
+
     // Get total student count
     const totalStudents = await prisma.student.count({
-      where: { aamarId: session.aamarId },
+      where: { aamarId: session.aamarId, ...baseWhereStudent },
     });
 
     // Get today's attendance records
     const attendanceRecords = await prisma.attendance.findMany({
       where: {
         aamarId: session.aamarId,
-        studentId: { not: null },
+        student: branchId ? { user: { branchId } } : { isNot: null },
         date: {
           gte: start,
           lte: end,
@@ -114,7 +116,7 @@ export async function getAttendanceStats(dateStr: string) {
     const monthRecords = await prisma.attendance.findMany({
       where: {
         aamarId: session.aamarId,
-        studentId: { not: null },
+        student: branchId ? { user: { branchId } } : { isNot: null },
         date: {
           gte: oneMonthAgo,
           lte: end,
@@ -532,21 +534,23 @@ export async function quickBulkMarkAttendance(
 }
 
 // Fetch teacher attendance stats for a date
-export async function getTeacherAttendanceStats(dateStr: string) {
+export async function getTeacherAttendanceStats(dateStr: string, branchId?: string) {
   try {
     const session = await requireAuth();
     const { start, end } = getDayRange(dateStr);
 
+    const baseWhereTeacher = branchId ? { user: { branchId } } : {};
+
     // Get total teacher count
     const totalTeachers = await prisma.teacher.count({
-      where: { aamarId: session.aamarId },
+      where: { aamarId: session.aamarId, ...baseWhereTeacher },
     });
 
     // Get today's attendance records for teachers
     const attendanceRecords = await prisma.attendance.findMany({
       where: {
         aamarId: session.aamarId,
-        teacherId: { not: null },
+        teacher: branchId ? { user: { branchId } } : { isNot: null },
         date: {
           gte: start,
           lte: end,
@@ -584,7 +588,7 @@ export async function getTeacherAttendanceStats(dateStr: string) {
 }
 
 // Fetch list of students on leave today
-export async function getStudentsOnLeaveToday() {
+export async function getStudentsOnLeaveToday(branchId?: string) {
   try {
     const session = await requireAuth();
     const todayStr = formatDateLocal(new Date());
@@ -594,7 +598,7 @@ export async function getStudentsOnLeaveToday() {
       where: {
         aamarId: session.aamarId,
         status: 'EXCUSED',
-        studentId: { not: null },
+        student: branchId ? { user: { branchId } } : { isNot: null },
         date: {
           gte: start,
           lte: end,
@@ -627,7 +631,7 @@ export async function getStudentsOnLeaveToday() {
 }
 
 // Fetch list of teachers on leave today (avatar format)
-export async function getTeachersOnLeaveToday() {
+export async function getTeachersOnLeaveToday(branchId?: string) {
   try {
     const session = await requireAuth();
     const todayStr = formatDateLocal(new Date());
@@ -637,7 +641,7 @@ export async function getTeachersOnLeaveToday() {
       where: {
         aamarId: session.aamarId,
         status: 'EXCUSED',
-        teacherId: { not: null },
+        teacher: branchId ? { user: { branchId } } : { isNot: null },
         date: {
           gte: start,
           lte: end,
@@ -670,7 +674,7 @@ export async function getTeachersOnLeaveToday() {
 }
 
 // Fetch detailed list of teachers on leave for list view
-export async function getDetailedTeachersOnLeave() {
+export async function getDetailedTeachersOnLeave(branchId?: string) {
   try {
     const session = await requireAuth();
     const todayStr = formatDateLocal(new Date());
@@ -680,7 +684,7 @@ export async function getDetailedTeachersOnLeave() {
       where: {
         aamarId: session.aamarId,
         status: 'EXCUSED',
-        teacherId: { not: null },
+        teacher: branchId ? { user: { branchId } } : { isNot: null },
         date: {
           gte: start,
           lte: end,

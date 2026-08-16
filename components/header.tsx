@@ -1,17 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { SunIcon, MoonIcon, HamburgerMenuIcon, Cross1Icon } from '@radix-ui/react-icons';
 import { useTheme } from 'next-themes';
 
 export function Header() {
-  const { theme, setTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const toggleTheme = () => {
-    setTheme(theme === 'light' ? 'dark' : 'light');
+    setTheme(resolvedTheme === 'light' ? 'dark' : 'light');
   };
 
   const toggleMobileMenu = () => {
@@ -33,7 +38,7 @@ export function Header() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 font-bold text-xl">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm dark:text-blue">AS</span>
+              <span className="text-primary-foreground font-bold text-sm">AS</span>
             </div>
             <span className="text-primary">Aamar</span>
             <span className="text-foreground">School</span>
@@ -61,7 +66,9 @@ export function Header() {
               onClick={toggleTheme}
               className="w-9 h-9"
             >
-              {theme === 'dark' ? (
+              {!mounted ? (
+                <div className="h-4 w-4" />
+              ) : resolvedTheme === 'dark' ? (
                 <SunIcon className="h-4 w-4" />
               ) : (
                 <MoonIcon className="h-4 w-4" />
@@ -74,7 +81,7 @@ export function Header() {
                 <Button variant="ghost">Log In</Button>
               </Link>
               <Link href="/register">
-                <Button className="bg-primary text-white hover:bg-primary/90">
+                <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
                   Sign Up
                 </Button>
               </Link>
@@ -117,7 +124,7 @@ export function Header() {
                   </Button>
                 </Link>
                 <Link href="/register" className="w-full">
-                  <Button className="bg-primary text-white hover:bg-primary/90 justify-start w-full">
+                  <Button className="bg-primary text-primary-foreground hover:bg-primary/90 justify-start w-full">
                     Sign Up
                   </Button>
                 </Link>

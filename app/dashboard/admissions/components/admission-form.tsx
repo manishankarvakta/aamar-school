@@ -124,14 +124,15 @@ export function AdmissionForm({ open, onOpenChange, onSuccess }: AdmissionFormPr
   const { selectedBranch, branches } = useBranch();
   const [classes, setClasses] = useState<ClassOption[]>([]);
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
-  const [generatedRollNumber, setGeneratedRollNumber] = useState('');
   const [isGeneratingRoll, setIsGeneratingRoll] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
-  const [formState, formAction] = useActionState(createStudentWithParent, { success: false, message: '' });
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [sections, setSections] = useState<any[]>([]);
   const { toast } = useToast();
-  const [submitting, setSubmitting] = useState(false);
+  const [isPending, setIsPending] = useState(false);
+  const [formError, setFormError] = useState<string>('');
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [generatedRollNumber, setGeneratedRollNumber] = useState<string>('');
 
   console.log("classes:",classes)
   // Form data state for persistence across steps
@@ -216,7 +217,7 @@ export function AdmissionForm({ open, onOpenChange, onSuccess }: AdmissionFormPr
 
   // Handle form submission result
   useEffect(() => {
-    if (formState.success) {
+    if (isSuccess) {
       toast({
         title: 'Success',
         description: 'Admission created successfully!'
@@ -224,13 +225,7 @@ export function AdmissionForm({ open, onOpenChange, onSuccess }: AdmissionFormPr
       onOpenChange(false);
       resetForm();
     }
-  }, [formState.success, onOpenChange, toast]);
-
-  useEffect(() => {
-    if (formState.success || formState.message) {
-      setSubmitting(false);
-    }
-  }, [formState.success, formState.message]);
+  }, [isSuccess, onOpenChange, toast]);
 
   const loadClasses = async () => {
     setIsLoadingClasses(true);
@@ -301,8 +296,9 @@ export function AdmissionForm({ open, onOpenChange, onSuccess }: AdmissionFormPr
       parentAddress: '',
       emergencyContact: '',
     });
-    setGeneratedRollNumber('');
     setPhotoPreview(null);
+    setFormError('');
+    setIsSuccess(false);
   };
 
   const updateFormData = (field: keyof FormData, value: string | File | null) => {
@@ -339,27 +335,40 @@ export function AdmissionForm({ open, onOpenChange, onSuccess }: AdmissionFormPr
   const defaultSchoolId = branches[0]?.id || '';
   const defaultBranchId = selectedBranch?.id || '';
 
-  const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleFormSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setSubmitting(true);
-    // Create a new FormData object for submission
-    const submissionData = new FormData();
-    Object.entries(formData).forEach(([key, value]) => {
-      if (key === 'studentPhoto' && value instanceof File) {
-        submissionData.append(key, value);
-      } else if (typeof value === 'string') {
-        submissionData.append(key, value);
+    setIsPending(true);
+    setFormError('');
+    
+    try {
+      // Create a new FormData object for submission
+      const submissionData = new FormData();
+      Object.entries(formData).forEach(([key, value]) => {
+        if (key === 'studentPhoto' && value instanceof File) {
+          submissionData.append(key, value);
+        } else if (typeof value === 'string') {
+          submissionData.append(key, value);
+        }
+      });
+      submissionData.append('schoolId', defaultSchoolId);
+      submissionData.append('branchId', defaultBranchId);
+      submissionData.append('rollNumber', generatedRollNumber);
+      if (formData.sectionId) {
+        submissionData.append('sectionId', formData.sectionId);
       }
-    });
-    submissionData.append('schoolId', defaultSchoolId);
-    submissionData.append('branchId', defaultBranchId);
-    submissionData.append('rollNumber', generatedRollNumber);
-    if (formData.sectionId) {
-      submissionData.append('section', formData.sectionId);
+      
+      const result = await createStudentWithParent(null, submissionData);
+      
+      if (result.success) {
+        setIsSuccess(true);
+      } else {
+        setFormError(result.message || 'Failed to submit admission');
+      }
+    } catch (error) {
+      setFormError('An unexpected error occurred during submission.');
+    } finally {
+      setIsPending(false);
     }
-    startTransition(() => {
-      formAction(submissionData);
-    });
   };
 
   return (
@@ -408,9 +417,9 @@ export function AdmissionForm({ open, onOpenChange, onSuccess }: AdmissionFormPr
           </div>
         </div>
 
-        {formState.message && !formState.success && (
+        {formError && !isSuccess && (
           <div className="mb-6 p-4 border border-red-200 bg-red-50 rounded-lg">
-            <p className="text-red-800 text-sm">{formState.message}</p>
+            <p className="text-red-800 text-sm">{formError}</p>
           </div>
         )}
 
@@ -1022,10 +1031,10 @@ export function AdmissionForm({ open, onOpenChange, onSuccess }: AdmissionFormPr
               <form onSubmit={handleFormSubmit} className="inline">
                 <Button 
                   type="submit" 
-                  disabled={formState.success || submitting}
+                  disabled={isSuccess || isPending}
                   className="px-8"
                 >
-                  {formState.success ? 'Submitted' : (submitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null)}
+                  {isSuccess ? 'Submitted' : (isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null)}
                   Submit Admission
                 </Button>
               </form>

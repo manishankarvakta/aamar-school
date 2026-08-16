@@ -16,7 +16,7 @@ export function HeroSection() {
             transition={{ duration: 0.6 }}
             className="text-4xl sm:text-5xl lg:text-6xl font-extrabold mb-6 leading-tight"
           >
-            Simplify School  <span className="text-accent">Operations. </span>
+            Simplify School <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">Operations.</span>
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -32,24 +32,37 @@ export function HeroSection() {
             transition={{ delay: 0.2, duration: 0.6 }}
             className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start mb-6"
           >
-            <Button size="lg" className="bg-primary text-white hover:bg-primary/90 shadow-lg">
+            <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg">
               Get Started
             </Button>
-            <Button size="lg" variant="outline" className="border-accent text-accent hover:bg-accent/10">
+            <Button size="lg" variant="outline" className="border-blue-600 text-blue-600 dark:border-blue-400 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20">
               <span className="mr-2">▶</span> Watch Video
             </Button>
           </motion.div>
           <div className="flex flex-wrap justify-center md:justify-start gap-6 mt-8">
-            <span className="flex items-center gap-2 text-sm text-muted-foreground"><span className="w-2 h-2 bg-accent rounded-full inline-block" /> Experienced mentor</span>
-            <span className="flex items-center gap-2 text-sm text-muted-foreground"><span className="w-2 h-2 bg-accent rounded-full inline-block" /> Quality Videos</span>
-            <span className="flex items-center gap-2 text-sm text-muted-foreground"><span className="w-2 h-2 bg-accent rounded-full inline-block" /> Affordable prices</span>
+            <span className="flex items-center gap-2 text-sm text-muted-foreground"><span className="w-2 h-2 bg-blue-600 dark:bg-blue-400 rounded-full inline-block" /> Experienced mentor</span>
+            <span className="flex items-center gap-2 text-sm text-muted-foreground"><span className="w-2 h-2 bg-blue-600 dark:bg-blue-400 rounded-full inline-block" /> Quality Videos</span>
+            <span className="flex items-center gap-2 text-sm text-muted-foreground"><span className="w-2 h-2 bg-blue-600 dark:bg-blue-400 rounded-full inline-block" /> Affordable prices</span>
           </div>
           {/* Trust Badges */}
-          <div className="flex flex-wrap gap-8 mt-10 items-center justify-center md:justify-start opacity-80">
-            <Image src="/logos/udemy.png" alt="Udemy" width={100} height={32} />
-            <Image src="/logos/coursera.png" alt="Coursera" width={100} height={32} />
-            <Image src="/logos/facebook.png" alt="Facebook" width={100} height={32} />
-            <Image src="/logos/google.png" alt="Google" width={100} height={32} />
+          <div className="mt-10 text-center md:text-left">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-4">
+              Trusted by Educators Worldwide
+            </p>
+            <div className="flex flex-wrap gap-4 items-center justify-center md:justify-start opacity-75">
+              <div className="px-3 py-1.5 rounded-md bg-muted text-foreground font-semibold text-sm border border-border/40 hover:opacity-100 transition-opacity">
+                Stanford Ed
+              </div>
+              <div className="px-3 py-1.5 rounded-md bg-muted text-foreground font-semibold text-sm border border-border/40 hover:opacity-100 transition-opacity">
+                Global Academy
+              </div>
+              <div className="px-3 py-1.5 rounded-md bg-muted text-foreground font-semibold text-sm border border-border/40 hover:opacity-100 transition-opacity">
+                EduLearn
+              </div>
+              <div className="px-3 py-1.5 rounded-md bg-muted text-foreground font-semibold text-sm border border-border/40 hover:opacity-100 transition-opacity">
+                Vanguard Schools
+              </div>
+            </div>
           </div>
         </div>
         {/* Right: Illustration */}
@@ -64,8 +77,8 @@ export function HeroSection() {
         </div>
       </div>
       {/* Decorative background shapes */}
-      <div className="absolute -top-32 -right-32 w-96 h-96 bg-accent/20 rounded-full blur-3xl -z-10" />
-      <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-primary/10 rounded-full blur-3xl -z-10" />
+      <div className="absolute -top-32 -right-32 w-96 h-96 bg-blue-500/10 dark:bg-blue-500/5 rounded-full blur-3xl -z-10" />
+      <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-indigo-500/10 dark:bg-indigo-500/5 rounded-full blur-3xl -z-10" />
     </section>
   );
 } 

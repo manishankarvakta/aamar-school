@@ -62,7 +62,7 @@ import {
 import { getSubjects } from "@/app/actions/subjects";
 import { getStudents, getStudentsByClass, updateStudent } from "@/app/actions/students";
 import { getTeachers } from "@/app/actions/teachers";
-import { getBranchesByAamarId } from "@/app/actions/branches";
+import { getBranchesWithStats } from "@/app/actions/branches";
 import {
   getSections,
   createSection,
@@ -288,7 +288,7 @@ export default function ClassesPage() {
         getSections(),
         getSectionStats(),
         getTeachers(),
-        getBranchesByAamarId(),
+        getBranchesWithStats(),
       ]);
 
       console.log("📊 API Results:", {
@@ -354,7 +354,7 @@ export default function ClassesPage() {
       if (branchesResult.success) {
         setAllBranches(branchesResult.data as any[]);
       } else {
-        console.warn("Failed to load branches:", branchesResult.message);
+        console.warn("Failed to load branches:", (branchesResult as any).error);
       }
     } catch (error) {
       console.error("Error loading data:", error);

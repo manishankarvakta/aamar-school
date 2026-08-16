@@ -552,13 +552,16 @@ export async function getStudentsForMarksEntry(examId: string, subjectId: string
 }
 
 // Get performance stats for dashboard
-export async function getPerformanceStats() {
+export async function getPerformanceStats(branchId?: string) {
   try {
     const session = await requireAuth();
     const aamarId = session.aamarId;
 
     const results = await prisma.examResult.findMany({
-      where: { aamarId },
+      where: { 
+        aamarId,
+        ...(branchId ? { student: { user: { branchId } } } : {})
+      },
       select: {
         obtainedMarks: true,
         fullMarks: true,

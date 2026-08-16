@@ -100,16 +100,19 @@ export async function createSubject(formData: FormData): Promise<SubjectResult> 
 }
 
 // Get all subjects by aamarId
-export async function getSubjects() {
+export async function getSubjects(branchId?: string) {
   const session = await requireAuth();
 
   try {
-    const subjects = await prisma.subject.findMany({
-      where: {
-        school: {
-          aamarId: session.aamarId
-        }
+    const whereClause: any = {
+      school: {
+        aamarId: session.aamarId
       },
+      ...(branchId ? { class: { branchId } } : {})
+    };
+
+    const subjects = await prisma.subject.findMany({
+      where: whereClause,
       include: {
         school: true,
         class: {
@@ -412,45 +415,36 @@ export async function deleteSubject(subjectId: string): Promise<SubjectResult> {
 }
 
 // Get subject statistics
-export async function getSubjectStats() {
+export async function getSubjectStats(branchId?: string) {
   const session = await requireAuth();
   const aamarId = session.aamarId;
   try {
+    const subjectWhere: any = {
+      school: { aamarId },
+      ...(branchId ? { class: { branchId } } : {})
+    };
+
     const totalSubjects = await prisma.subject.count({
-      where: {
-        school: {
-          aamarId: aamarId
-        }
-      }
+      where: subjectWhere
     });
 
     const totalChapters = await prisma.chapter.count({
       where: {
-        subject: {
-          school: {
-            aamarId: aamarId
-          }
-        }
+        subject: subjectWhere
       }
     });
 
     const totalLessons = await prisma.lesson.count({
       where: {
         chapter: {
-          subject: {
-            school: {
-              aamarId: aamarId
-            }
-          }
+          subject: subjectWhere
         }
       }
     });
 
     const newThisMonth = await prisma.subject.count({
       where: {
-        school: {
-          aamarId: aamarId
-        },
+        ...subjectWhere,
         createdAt: {
           gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
         }
@@ -460,11 +454,7 @@ export async function getSubjectStats() {
     // Get class-wise distribution
     const classWiseCount = await prisma.subject.groupBy({
       by: ['classId'],
-      where: {
-        school: {
-          aamarId: aamarId
-        }
-      },
+      where: subjectWhere,
       _count: {
         id: true
       }
@@ -473,11 +463,7 @@ export async function getSubjectStats() {
     // Get school-wise distribution
     const schoolWiseCount = await prisma.subject.groupBy({
       by: ['schoolId'],
-      where: {
-        school: {
-          aamarId: aamarId
-        }
-      },
+      where: subjectWhere,
       _count: {
         id: true
       }

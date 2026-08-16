@@ -165,24 +165,26 @@ export async function createTeacher(formData: FormData): Promise<TeacherResult> 
 }
 
 // Get all teachers by aamarId with pagination
-export async function getTeachers(page: number = 1, limit: number = 10) {
+export async function getTeachers(page: number = 1, limit: number = 10, branchId?: string) {
   try {
     // Get session data for multi-tenancy
     const session = await requireAuth();
     
     const skip = (page - 1) * limit;
+
+    // Build where clause — optionally filter by branch
+    const whereClause: any = {
+      aamarId: session.aamarId,
+      ...(branchId && branchId !== 'all' ? { user: { branchId } } : {}),
+    };
     
     // Get total count for pagination
     const totalCount = await prisma.teacher.count({
-      where: {
-        aamarId: session.aamarId
-      }
+      where: whereClause
     });
 
     const teachers = await prisma.teacher.findMany({
-      where: {
-        aamarId: session.aamarId
-      },
+      where: whereClause,
       include: {
         user: {
           include: {
@@ -586,8 +588,7 @@ export async function deleteTeacher(teacherId: string): Promise<TeacherResult> {
   }
 }
 
-// Get teacher statistics
-export async function getTeacherStats(): Promise<TeacherResult> {
+export async function getTeacherStats(branchId?: string): Promise<TeacherResult> {
   try {
     // Get session data for multi-tenancy
     const session = await requireAuth();
@@ -595,7 +596,8 @@ export async function getTeacherStats(): Promise<TeacherResult> {
     // Get teachers with their users and branches
     const teachers = await prisma.teacher.findMany({
       where: {
-        aamarId: session.aamarId
+        aamarId: session.aamarId,
+        ...(branchId ? { user: { branchId } } : {})
       },
       include: {
         user: {
@@ -775,39 +777,103 @@ export async function searchTeachers(query: string) {
   }
 }
 
-// Get top teachers for dashboard performance listing
-export async function getTopTeachers() {
+// Get top teachers for dashboard performance listing (dynamic, real data)
+export async function getTopTeachers(branchId?: string) {
   try {
     const session = await requireAuth();
+
     const teachers = await prisma.teacher.findMany({
-      where: { aamarId: session.aamarId },
-      include: {
-        user: true,
-        classes: true,
+      where: { 
+        aamarId: session.aamarId, 
+        user: { 
+          isActive: true,
+          ...(branchId ? { branchId } : {})
+        } 
       },
-      take: 4,
+      include: {
+        user: {
+          include: {
+            branch: { select: { name: true } },
+          },
+        },
+        classes: {
+          include: {
+            sections: {
+              include: {
+                students: { select: { id: true } },
+              },
+            },
+          },
+        },
+        attendance: {
+          where: {
+            // Last 30 days
+            date: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+          },
+          select: { status: true },
+        },
+      },
+      take: 5,
+      orderBy: { experience: 'desc' },
     });
 
-    return {
-      success: true,
-      data: teachers.map((t, i) => {
-        const rating = 4.2 + (t.experience % 5) * 0.15;
-        return {
-          name: `${t.user.firstName} ${t.user.lastName}`,
-          department: t.specialization || 'General',
-          rating: parseFloat(rating.toFixed(1)),
-          students: 15 * (t.classes.length || 1),
-          improvement: i % 2 === 0 ? '+0.2' : '+0.1',
-          status: rating >= 4.8 ? 'Outstanding' : rating >= 4.6 ? 'Excellent' : 'Very Good',
-        };
-      }),
-    };
+    const result = teachers.map((t) => {
+      // Total students taught
+      const totalStudents = t.classes.reduce((sum, cls) =>
+        sum + cls.sections.reduce((s, sec) => s + sec.students.length, 0), 0
+      );
+
+      // Attendance rate (last 30 days)
+      const totalAttRecords = t.attendance.length;
+      const presentCount = t.attendance.filter(
+        (a) => a.status === 'PRESENT'
+      ).length;
+      const attendanceRate =
+        totalAttRecords > 0 ? (presentCount / totalAttRecords) * 100 : 100;
+
+      // Rating: weighted from experience + attendance rate + classes
+      // Max 5.0: experience contributes up to 2.5, attendance up to 1.5, classes up to 1.0
+      const expScore = Math.min(t.experience / 20, 1) * 2.5;
+      const attScore = (attendanceRate / 100) * 1.5;
+      const classScore = Math.min(t.classes.length / 5, 1) * 1.0;
+      const rawRating = expScore + attScore + classScore;
+      const rating = Math.max(3.0, Math.min(5.0, parseFloat(rawRating.toFixed(1))));
+
+      const status =
+        rating >= 4.8 ? 'Outstanding'
+        : rating >= 4.5 ? 'Excellent'
+        : rating >= 4.0 ? 'Very Good'
+        : rating >= 3.5 ? 'Good'
+        : 'Average';
+
+      // Improvement: compare to a base 4.0 reference
+      const diff = parseFloat((rating - 4.0).toFixed(1));
+      const improvement = diff >= 0 ? `+${diff}` : `${diff}`;
+
+      return {
+        id: t.id,
+        name: `${t.user.firstName} ${t.user.lastName}`,
+        department: t.specialization || t.user.branch?.name || 'General',
+        qualification: t.qualification,
+        experience: t.experience,
+        rating,
+        students: totalStudents,
+        classes: t.classes.length,
+        attendanceRate: Math.round(attendanceRate),
+        improvement,
+        status,
+        initials: `${t.user.firstName[0]}${t.user.lastName[0]}`.toUpperCase(),
+      };
+    });
+
+    // Sort by rating descending
+    result.sort((a, b) => b.rating - a.rating);
+
+    return { success: true, data: result };
   } catch (error) {
     console.error('Error fetching top teachers:', error);
-    return {
-      success: false,
-      data: [],
-    };
+    return { success: false, data: [] };
   }
 }
+
  

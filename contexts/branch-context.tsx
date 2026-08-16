@@ -1,6 +1,9 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { getBranchesWithStats } from '@/app/actions/branches';
+import Cookies from 'js-cookie';
+import { useRouter } from 'next/navigation';
 
 interface Branch {
   id: string;
@@ -10,12 +13,8 @@ interface Branch {
   status: 'Active' | 'Under Construction' | 'Inactive';
   students: number;
   teachers: number;
-  principal?: string;
   phone?: string;
   email?: string;
-  facilities?: string[];
-  establishedDate?: string;
-  academicYear?: string;
 }
 
 interface BranchContextType {
@@ -30,93 +29,50 @@ interface BranchContextType {
 
 const BranchContext = createContext<BranchContextType | undefined>(undefined);
 
-// Sample data - in a real app, this would come from an API
-const sampleBranches: Branch[] = [
-  {
-    id: 'BRN001',
-    name: 'Main Campus',
-    code: 'MAIN',
-    address: '123 Education Street, Dhaka, Bangladesh',
-    status: 'Active',
-    students: 1245,
-    teachers: 78,
-    principal: 'Dr. Sarah Ahmed',
-    phone: '+880-1234-567890',
-    email: 'main@aamarschool.edu.bd',
-    facilities: ['Library', 'Laboratory', 'Playground', 'Computer Lab', 'Auditorium'],
-    establishedDate: '2010-01-15',
-    academicYear: '2024-2025',
-  },
-  {
-    id: 'BRN002',
-    name: 'North Campus',
-    code: 'NORTH',
-    address: '456 Academic Avenue, Uttara, Dhaka',
-    status: 'Active',
-    students: 890,
-    teachers: 56,
-    principal: 'Prof. Mohammad Rahman',
-    phone: '+880-1234-567891',
-    email: 'north@aamarschool.edu.bd',
-    facilities: ['Library', 'Laboratory', 'Playground', 'Computer Lab'],
-    establishedDate: '2015-03-20',
-    academicYear: '2024-2025',
-  },
-  {
-    id: 'BRN003',
-    name: 'South Campus',
-    code: 'SOUTH',
-    address: '789 Learning Lane, Dhanmondi, Dhaka',
-    status: 'Active',
-    students: 654,
-    teachers: 42,
-    principal: 'Ms. Fatima Khan',
-    phone: '+880-1234-567892',
-    email: 'south@aamarschool.edu.bd',
-    facilities: ['Library', 'Laboratory', 'Computer Lab'],
-    establishedDate: '2018-08-10',
-    academicYear: '2024-2025',
-  },
-  {
-    id: 'BRN004',
-    name: 'East Campus',
-    code: 'EAST',
-    address: '321 Knowledge Road, Bashundhara, Dhaka',
-    status: 'Under Construction',
-    students: 423,
-    teachers: 28,
-    principal: 'Dr. Ahmed Hassan',
-    phone: '+880-1234-567893',
-    email: 'east@aamarschool.edu.bd',
-    facilities: ['Library', 'Computer Lab'],
-    establishedDate: '2020-06-01',
-    academicYear: '2024-2025',
-  }
-];
-
 interface BranchProviderProps {
   children: React.ReactNode;
 }
 
 export function BranchProvider({ children }: BranchProviderProps) {
-  const [selectedBranchId, setSelectedBranchId] = useState<string>('BRN001');
+  const router = useRouter();
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('all');
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load branches data (simulate API call)
+  // Load branches from DB via server action
   useEffect(() => {
     const loadBranches = async () => {
       try {
         setLoading(true);
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setBranches(sampleBranches);
-        
-        // Load saved branch from localStorage
-        const savedBranchId = localStorage.getItem('selectedBranchId');
-        if (savedBranchId && sampleBranches.find(b => b.id === savedBranchId)) {
-          setSelectedBranchId(savedBranchId);
+        const result = await getBranchesWithStats();
+
+        if (!result.success) {
+          setError('Failed to load branches');
+          return;
+        }
+
+        // Map BranchWithStats → Branch (context shape)
+        const mapped: Branch[] = result.data.map((b) => ({
+          id: b.id,
+          name: b.name,
+          code: b.code,
+          address: b.address,
+          status: b.isActive ? 'Active' : 'Inactive',
+          students: b.totalStudents,
+          teachers: b.totalTeachers,
+          phone: b.phone,
+          email: b.email,
+        }));
+
+        setBranches(mapped);
+
+        // Restore last selected branch from localStorage
+        const saved = localStorage.getItem('selectedBranchId');
+        if (saved && (saved === 'all' || mapped.find((b) => b.id === saved))) {
+          setSelectedBranchId(saved);
+        } else if (mapped.length > 0) {
+          setSelectedBranchId('all');
         }
       } catch (err) {
         setError('Failed to load branches');
@@ -128,20 +84,21 @@ export function BranchProvider({ children }: BranchProviderProps) {
     loadBranches();
   }, []);
 
-  // Save selected branch to localStorage
+  // Persist selected branch
   useEffect(() => {
-    if (selectedBranchId !== 'all') {
-      localStorage.setItem('selectedBranchId', selectedBranchId);
-    }
+    localStorage.setItem('selectedBranchId', selectedBranchId);
   }, [selectedBranchId]);
 
   const selectBranch = (branchId: string) => {
     setSelectedBranchId(branchId);
+    Cookies.set('selectedBranchId', branchId, { path: '/' });
+    router.refresh();
   };
 
-  const selectedBranch = selectedBranchId === 'all' 
-    ? null 
-    : branches.find(b => b.id === selectedBranchId) || null;
+  const selectedBranch =
+    selectedBranchId === 'all'
+      ? null
+      : branches.find((b) => b.id === selectedBranchId) || null;
 
   const isAllBranches = selectedBranchId === 'all';
 
@@ -173,16 +130,16 @@ export function useBranch() {
 // Utility hooks for branch-specific operations
 export function useBranchStats() {
   const { selectedBranch, branches, isAllBranches } = useBranch();
-  
+
   if (isAllBranches) {
     return {
-      totalStudents: branches.reduce((sum, branch) => sum + branch.students, 0),
-      totalTeachers: branches.reduce((sum, branch) => sum + branch.teachers, 0),
+      totalStudents: branches.reduce((sum, b) => sum + b.students, 0),
+      totalTeachers: branches.reduce((sum, b) => sum + b.teachers, 0),
       totalBranches: branches.length,
-      activeBranches: branches.filter(b => b.status === 'Active').length,
+      activeBranches: branches.filter((b) => b.status === 'Active').length,
     };
   }
-  
+
   return {
     totalStudents: selectedBranch?.students || 0,
     totalTeachers: selectedBranch?.teachers || 0,
@@ -193,10 +150,10 @@ export function useBranchStats() {
 
 export function useBranchFilter<T extends { branchId?: string }>(data: T[]): T[] {
   const { selectedBranchId, isAllBranches } = useBranch();
-  
+
   if (isAllBranches) {
     return data;
   }
-  
-  return data.filter(item => item.branchId === selectedBranchId);
-} 
+
+  return data.filter((item) => item.branchId === selectedBranchId);
+}
