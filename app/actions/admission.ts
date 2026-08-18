@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, getSessionData } from "@/lib/session";
 import { revalidatePath } from "next/cache";
 import { UserRole, Gender } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 // Types based on Prisma schema
 interface StudentAdmissionData {
@@ -45,6 +46,10 @@ interface AdmissionResult {
     studentId: string;
     parentId: string;
     applicationNo: string;
+    studentEmail?: string;
+    studentPassword?: string;
+    parentEmail?: string;
+    parentPassword?: string;
   };
 }
 
@@ -268,6 +273,12 @@ export async function createStudentWithParent(
     }
     console.log("✅ Roll number uniqueness validated");
 
+    // Generate random plain text passwords and hash them
+    const studentPassword = `STU-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const parentPassword = `PAR-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const hashedStudentPassword = await bcrypt.hash(studentPassword, 10);
+    const hashedParentPassword = await bcrypt.hash(parentPassword, 10);
+
     // Generate application number
     const applicationNo = `ADM-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
     console.log("📄 Generated application number:", applicationNo);
@@ -282,7 +293,7 @@ export async function createStudentWithParent(
         data: {
           aamarId: session.aamarId,
           email: data.parentEmail,
-          password: "parent123", // Default password - should be changed on first login
+          password: hashedParentPassword,
           firstName: data.parentFirstName,
           lastName: data.parentLastName,
           role: UserRole.PARENT,
@@ -323,7 +334,7 @@ export async function createStudentWithParent(
         data: {
           aamarId: session.aamarId,
           email: data.studentEmail,
-          password: "student123", // Default password - should be changed on first login
+          password: hashedStudentPassword,
           firstName: data.studentFirstName,
           lastName: data.studentLastName,
           role: UserRole.STUDENT,
@@ -370,6 +381,9 @@ export async function createStudentWithParent(
         studentUser,
         applicationNo,
       };
+    }, {
+      maxWait: 15000,
+      timeout: 30000,
     });
 
     console.log("🎉 Transaction completed successfully!");
@@ -391,6 +405,10 @@ export async function createStudentWithParent(
         studentId: result.studentUser.student!.id,
         parentId: result.parentUser.parent!.id,
         applicationNo: result.applicationNo,
+        studentEmail: data.studentEmail,
+        studentPassword: studentPassword,
+        parentEmail: data.parentEmail,
+        parentPassword: parentPassword,
       },
     };
   } catch (error) {

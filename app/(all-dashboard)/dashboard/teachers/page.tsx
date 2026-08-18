@@ -30,6 +30,8 @@ import {
   Mail,
   GraduationCap,
   BookOpen,
+  CheckCircle2,
+  Copy,
 } from 'lucide-react';
 import { 
   getTeachers, 
@@ -83,6 +85,8 @@ export default function TeachersPage() {
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [credentials, setCredentials] = useState<{ email?: string; password?: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // Use global branch context from header
   const { selectedBranchId, branches, loading: branchLoading } = useBranch();
@@ -350,11 +354,12 @@ export default function TeachersPage() {
       const result = await createTeacher(formData);
       
       if (result.success) {
+        // @ts-ignore
+        setCredentials(result.data || null);
         toast({
           title: "Success",
           description: result.message
         });
-        setShowAddDialog(false);
         loadTeachersData();
       } else {
         toast({
@@ -679,64 +684,121 @@ export default function TeachersPage() {
       )}
 
       {/* Add Teacher Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+      <Dialog open={showAddDialog} onOpenChange={(open) => { setShowAddDialog(open); if (!open) { setCredentials(null); setCopied(false); } }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Add New Teacher</DialogTitle>
-          </DialogHeader>
-          <form action={handleAddSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>First Name *</Label>
-                <Input name="firstName" required />
+          {credentials ? (
+            <div className="flex flex-col items-center justify-center p-6 space-y-6 text-center">
+              <div className="p-4 bg-green-50 rounded-full text-green-600 animate-bounce">
+                <CheckCircle2 className="h-16 w-16" />
               </div>
               <div className="space-y-2">
-                <Label>Last Name *</Label>
-                <Input name="lastName" required />
+                <h3 className="text-xl font-bold text-slate-800">Teacher Account Created Successfully!</h3>
+                <p className="text-sm text-muted-foreground max-w-sm">
+                  Please copy the auto-generated credentials below so the teacher can log in immediately.
+                </p>
               </div>
-              <div className="space-y-2">
-                <Label>Email *</Label>
-                <Input name="email" type="email" required />
+
+              <div className="w-full bg-slate-50 border p-4 rounded-xl space-y-3 font-mono text-left text-sm max-w-md">
+                <div className="flex justify-between items-center pb-2 border-b">
+                  <span className="font-bold text-xs uppercase tracking-wider text-slate-500">Teacher Login Portal</span>
+                  <Badge variant="outline" className="text-[10px] font-mono text-green-700 bg-green-50 border-green-200 font-semibold">ACTIVE</Badge>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Email Address</span>
+                  <p className="text-slate-800 font-bold break-all">{credentials.email}</p>
+                </div>
+                <div className="space-y-1">
+                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Generated Password</span>
+                  <p className="text-slate-800 font-bold">{credentials.password}</p>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Phone</Label>
-                <Input name="phone" />
-              </div>
-              <div className="space-y-2">
-                <Label>Qualification *</Label>
-                <Input name="qualification" required />
-              </div>
-              <div className="space-y-2">
-                <Label>Experience (years)</Label>
-                <Input name="experience" type="number" min="0" />
-              </div>
-              <div className="space-y-2">
-                <Label>Specialization</Label>
-                <Input name="specialization" />
-              </div>
-              <div className="space-y-2">
-                <Label>Branch *</Label>
-                <Select name="branchId" required>
-                  <SelectTrigger disabled={branchLoading} className="w-full">
-                    <SelectValue placeholder={branchLoading ? "Loading branches..." : "Select branch"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+
+              <div className="flex flex-col sm:flex-row gap-2 w-full max-w-md">
+                <Button 
+                  onClick={() => {
+                    const text = `Teacher Portal Login:\nEmail: ${credentials.email}\nPassword: ${credentials.password}`;
+                    navigator.clipboard.writeText(text);
+                    setCopied(true);
+                    toast({ title: "Copied!", description: "Credentials copied to clipboard." });
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2"
+                  variant="outline"
+                >
+                  <Copy className="h-4 w-4" />
+                  {copied ? "Copied!" : "Copy to Clipboard"}
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setShowAddDialog(false);
+                    setCredentials(null);
+                    setCopied(false);
+                  }}
+                  className="flex-1"
+                >
+                  Done & Close
+                </Button>
               </div>
             </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
-                Cancel
-              </Button>
-              <Button type="submit">
-                Create Teacher
-              </Button>
-            </div>
-          </form>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>Add New Teacher</DialogTitle>
+              </DialogHeader>
+              <form action={handleAddSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>First Name *</Label>
+                    <Input name="firstName" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Last Name *</Label>
+                    <Input name="lastName" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Email *</Label>
+                    <Input name="email" type="email" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Phone</Label>
+                    <Input name="phone" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Qualification *</Label>
+                    <Input name="qualification" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Experience (years)</Label>
+                    <Input name="experience" type="number" min="0" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Specialization</Label>
+                    <Input name="specialization" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Branch *</Label>
+                    <Select name="branchId" required>
+                      <SelectTrigger disabled={branchLoading} className="w-full">
+                        <SelectValue placeholder={branchLoading ? "Loading branches..." : "Select branch"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {branches.map((branch) => (
+                          <SelectItem key={branch.id} value={branch.id}>{branch.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit">
+                    Create Teacher
+                  </Button>
+                </div>
+              </form>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 

@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       branchId: user.branchId,
     });
 
-    return NextResponse.json({ token });
+    return NextResponse.json({ token, role: user.role });
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

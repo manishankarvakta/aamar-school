@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { createStudentWithParent, generateRollNumber } from '@/app/actions/admission';
 import { getClassesByAamarId } from '@/app/actions/classes';
 import { useBranch } from '@/contexts/branch-context';
-import { Loader2, UserIcon, Users, Calendar, MapPin, Phone, Mail, GraduationCap, Upload, Camera, RefreshCcw } from 'lucide-react';
+import { Loader2, UserIcon, Users, Calendar, MapPin, Phone, Mail, GraduationCap, Upload, Camera, RefreshCcw, CheckCircle2, Copy, Check } from 'lucide-react';
 import { Gender } from '@prisma/client';
 import { getSectionsByClass } from '@/app/actions/sections';
 import { startTransition } from 'react';
@@ -133,6 +133,14 @@ export function AdmissionForm({ open, onOpenChange, onSuccess }: AdmissionFormPr
   const [formError, setFormError] = useState<string>('');
   const [isSuccess, setIsSuccess] = useState(false);
   const [generatedRollNumber, setGeneratedRollNumber] = useState<string>('');
+  const [credentials, setCredentials] = useState<{
+    studentEmail?: string;
+    studentPassword?: string;
+    parentEmail?: string;
+    parentPassword?: string;
+  } | null>(null);
+  const [copiedStudent, setCopiedStudent] = useState(false);
+  const [copiedParent, setCopiedParent] = useState(false);
 
   console.log("classes:",classes)
   // Form data state for persistence across steps
@@ -217,15 +225,32 @@ export function AdmissionForm({ open, onOpenChange, onSuccess }: AdmissionFormPr
 
   // Handle form submission result
   useEffect(() => {
-    if (isSuccess) {
-      toast({
-        title: 'Success',
-        description: 'Admission created successfully!'
-      });
+    if (isSuccess && !credentials) {
       onOpenChange(false);
       resetForm();
     }
-  }, [isSuccess, onOpenChange, toast]);
+  }, [isSuccess, credentials, onOpenChange]);
+
+  const copyToClipboard = (text: string, type: 'student' | 'parent') => {
+    navigator.clipboard.writeText(text);
+    if (type === 'student') {
+      setCopiedStudent(true);
+      setTimeout(() => setCopiedStudent(false), 2000);
+    } else {
+      setCopiedParent(true);
+      setTimeout(() => setCopiedParent(false), 2000);
+    }
+    toast({
+      title: 'Copied',
+      description: 'Credentials copied to clipboard!',
+    });
+  };
+
+  const handleDone = () => {
+    onOpenChange(false);
+    resetForm();
+    onSuccess?.();
+  };
 
   const loadClasses = async () => {
     setIsLoadingClasses(true);
@@ -299,6 +324,7 @@ export function AdmissionForm({ open, onOpenChange, onSuccess }: AdmissionFormPr
     setPhotoPreview(null);
     setFormError('');
     setIsSuccess(false);
+    setCredentials(null);
   };
 
   const updateFormData = (field: keyof FormData, value: string | File | null) => {
@@ -360,7 +386,12 @@ export function AdmissionForm({ open, onOpenChange, onSuccess }: AdmissionFormPr
       const result = await createStudentWithParent(null, submissionData);
       
       if (result.success) {
+        setCredentials(result.data || null);
         setIsSuccess(true);
+        toast({
+          title: 'Success',
+          description: 'Admission created successfully!'
+        });
       } else {
         setFormError(result.message || 'Failed to submit admission');
       }
@@ -384,7 +415,93 @@ export function AdmissionForm({ open, onOpenChange, onSuccess }: AdmissionFormPr
           </p>
         </DialogHeader>
 
-        {/* Enhanced Progress Bar */}
+        {isSuccess && credentials ? (
+          <div className="space-y-6 max-w-2xl mx-auto py-8 text-center">
+            <div className="flex justify-center">
+              <div className="bg-green-100 p-3 rounded-full text-green-600">
+                <CheckCircle2 className="h-16 w-16" />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <h3 className="text-2xl font-bold text-green-700">Admission Process Successful!</h3>
+              <p className="text-muted-foreground text-sm max-w-md mx-auto">
+                Student and Parent records have been successfully created. Please copy the default login credentials below.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left mt-6">
+              {/* Student Credentials Card */}
+              <div className="border border-green-200 bg-green-50/30 p-5 rounded-xl space-y-4 shadow-sm relative overflow-hidden">
+                <div className="flex items-center gap-2 text-green-800 font-semibold border-b pb-2 border-green-100">
+                  <UserIcon className="h-5 w-5" />
+                  <span>Student Credentials</span>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <span className="text-xs text-muted-foreground block font-medium">LOGIN EMAIL</span>
+                    <span className="font-mono text-slate-800 break-all">{credentials.studentEmail}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground block font-medium">PASSWORD</span>
+                    <span className="font-mono bg-white px-2 py-0.5 rounded border border-green-150 text-slate-900 font-bold text-base">{credentials.studentPassword}</span>
+                  </div>
+                </div>
+                <Button 
+                  onClick={() => copyToClipboard(`Email: ${credentials.studentEmail}\nPassword: ${credentials.studentPassword}`, 'student')}
+                  size="sm" 
+                  variant="outline" 
+                  className="w-full flex items-center justify-center gap-2 border-green-200 hover:bg-green-50 text-green-700 bg-white"
+                >
+                  {copiedStudent ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {copiedStudent ? 'Copied!' : 'Copy Credentials'}
+                </Button>
+              </div>
+
+              {/* Parent Credentials Card */}
+              <div className="border border-indigo-200 bg-indigo-50/20 p-5 rounded-xl space-y-4 shadow-sm relative overflow-hidden">
+                <div className="flex items-center gap-2 text-indigo-800 font-semibold border-b pb-2 border-indigo-100">
+                  <Users className="h-5 w-5" />
+                  <span>Parent Credentials</span>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <span className="text-xs text-muted-foreground block font-medium">LOGIN EMAIL</span>
+                    <span className="font-mono text-slate-800 break-all">{credentials.parentEmail}</span>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground block font-medium">PASSWORD</span>
+                    <span className="font-mono bg-white px-2 py-0.5 rounded border border-indigo-150 text-slate-900 font-bold text-base">{credentials.parentPassword}</span>
+                  </div>
+                </div>
+                <Button 
+                  onClick={() => copyToClipboard(`Email: ${credentials.parentEmail}\nPassword: ${credentials.parentPassword}`, 'parent')}
+                  size="sm" 
+                  variant="outline" 
+                  className="w-full flex items-center justify-center gap-2 border-indigo-200 hover:bg-indigo-50 text-indigo-700 bg-white"
+                >
+                  {copiedParent ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {copiedParent ? 'Copied!' : 'Copy Credentials'}
+                </Button>
+              </div>
+            </div>
+
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-left mt-4 text-amber-800 text-xs flex gap-2">
+              <span className="font-bold">⚠️ Warning:</span>
+              <span>
+                Please make sure to save these login credentials now. Passwords are encrypted on the server and cannot be retrieved in plain text later.
+              </span>
+            </div>
+
+            <div className="pt-6 border-t flex justify-end">
+              <Button onClick={handleDone} className="px-10">
+                Done & Close
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Enhanced Progress Bar */}
         <div className="flex items-center justify-center mb-8 ">
           <div className="flex items-center w-full max-w-2xl">
             {[1, 2, 3].map((step) => (
@@ -1041,6 +1158,8 @@ export function AdmissionForm({ open, onOpenChange, onSuccess }: AdmissionFormPr
             )}
           </div>
         </div>
+        </>
+      )}
       </DialogContent>
     </Dialog>
   );

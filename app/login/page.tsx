@@ -38,7 +38,15 @@ export default function LoginPage() {
           title: 'Login Successful',
           description: 'Welcome back!',
         });
-        router.push('/dashboard');
+        if (data.role === 'STUDENT') {
+          router.push('/dashboard/student-dashboard');
+        } else if (data.role === 'PARENT') {
+          router.push('/dashboard/parent-dashboard');
+        } else if (data.role === 'TEACHER') {
+          router.push('/dashboard/teacher-dashboard');
+        } else {
+          router.push('/dashboard');
+        }
       } else {
         toast({
           title: 'Login Failed',

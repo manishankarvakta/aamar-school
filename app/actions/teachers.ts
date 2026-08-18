@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { requireAuth } from '@/lib/session';
 import { Gender, UserRole } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 export interface TeacherData {
   id: string;
@@ -45,7 +46,12 @@ export interface TeacherStats {
 export interface TeacherResult {
   success: boolean;
   message: string;
-  data?: TeacherData | TeacherData[] | TeacherStats | { teacherId: string; userId: string };
+  data?: {
+    teacherId: string;
+    userId: string;
+    email?: string;
+    password?: string;
+  } | TeacherData | TeacherData[] | TeacherStats;
 }
 
 // Create new teacher
@@ -94,6 +100,10 @@ export async function createTeacher(formData: FormData): Promise<TeacherResult> 
       };
     }
 
+    // Generate random teacher password and hash it
+    const teacherPassword = `TEA-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const hashedTeacherPassword = await bcrypt.hash(teacherPassword, 10);
+
     // Create in transaction
     const result = await prisma.$transaction(async (tx) => {
       // Create user
@@ -105,7 +115,7 @@ export async function createTeacher(formData: FormData): Promise<TeacherResult> 
           role: UserRole.TEACHER,
           aamarId: session.aamarId,
           branchId: data.branchId || session.branchId,
-          password: "password123", // Default password - should be hashed in production
+          password: hashedTeacherPassword,
           schoolId: session.schoolId,
         }
       });
@@ -141,6 +151,9 @@ export async function createTeacher(formData: FormData): Promise<TeacherResult> 
       });
 
       return { user, teacher };
+    }, {
+      maxWait: 15000,
+      timeout: 30000,
     });
 
     revalidatePath('/dashboard/teachers');
@@ -152,6 +165,8 @@ export async function createTeacher(formData: FormData): Promise<TeacherResult> 
       data: {
         teacherId: result.teacher.id,
         userId: result.user.id,
+        email: data.email,
+        password: teacherPassword,
       },
     };
 

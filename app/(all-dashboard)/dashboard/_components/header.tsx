@@ -41,7 +41,7 @@ export function Header({ user }: { user: DecodedToken }) {
     <header className="h-16 flex items-center justify-between px-6 bg-card border-b">
       {/* Branch Selector */}
       <div className="py-3">
-        <BranchSelector compact />
+        {user.role === 'ADMIN' && <BranchSelector compact />}
       </div>
       <div className="flex items-center space-x-4">
         {/* Dark Mode Toggle */}
@@ -80,14 +80,14 @@ export function Header({ user }: { user: DecodedToken }) {
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-9 w-9">
                 <AvatarImage src="/avatars/01.png" alt="User avatar" />
-                <AvatarFallback>AD</AvatarFallback>
+                <AvatarFallback>{user.role[0]}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">Admin</p>
+                <p className="text-sm font-medium leading-none capitalize">{user.role.toLowerCase()}</p>
                 <p className="text-xs leading-none text-muted-foreground">
                   {user.userId}
                 </p>
