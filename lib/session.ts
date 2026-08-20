@@ -8,6 +8,7 @@ export interface SessionData {
   aamarId: string;
   schoolId: string;
   branchId: string | null;
+  email: string;
 }
 
 /**
@@ -26,7 +27,7 @@ export async function getSessionData(): Promise<SessionData | null> {
     // Verify and decode JWT token
     const decodedToken: DecodedToken = await verifyToken(token);
 
-    // Get user's aamarId from database
+    // Get user's aamarId and email from database
     const user = await prisma.user.findUnique({
       where: { id: decodedToken.userId },
       select: {
@@ -35,6 +36,7 @@ export async function getSessionData(): Promise<SessionData | null> {
         role: true,
         schoolId: true,
         branchId: true,
+        email: true,
       },
     });
 
@@ -48,6 +50,7 @@ export async function getSessionData(): Promise<SessionData | null> {
       aamarId: user.aamarId,
       schoolId: user.schoolId,
       branchId: user.branchId,
+      email: user.email,
     };
   } catch (error) {
     console.error('Error getting session data:', error);

@@ -2,7 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/session';
-import { ClassType } from '@prisma/client';
+import { ClassType, AudienceType } from '@prisma/client';
 
 interface RoutineSlotInput {
   id?: string;
@@ -161,6 +161,24 @@ export async function upsertClassRoutine({
           slots: { include: { subject: true, teacher: true }, where: { aamarId: session.aamarId } },
         },
       });
+      // Send automatic announcement to students and parents of the class
+      try {
+        await prisma.announcement.create({
+          data: {
+            aamarId: session.aamarId,
+            branchId: branchId,
+            title: `Class Routine Update - ${classObj.name}`,
+            message: `The class routine for ${classObj.name} (${academicYear}) has been updated. Please check your dashboard timetable.`,
+            announcementType: 'GENERAL',
+            audience: [AudienceType.STUDENT, AudienceType.PARENT],
+            visibleFrom: new Date(),
+            createdById: session.userId,
+          },
+        });
+      } catch (annError) {
+        console.error('Failed to create automatic announcement:', annError);
+      }
+
       return {
         success: true,
         data: updated,
@@ -193,6 +211,25 @@ export async function upsertClassRoutine({
           slots: { include: { subject: true, teacher: true }, where: { aamarId: session.aamarId } },
         },
       });
+
+      // Send automatic announcement to students and parents of the class
+      try {
+        await prisma.announcement.create({
+          data: {
+            aamarId: session.aamarId,
+            branchId: branchId,
+            title: `Class Routine Update - ${classObj.name}`,
+            message: `The class routine for ${classObj.name} (${academicYear}) has been updated. Please check your dashboard timetable.`,
+            announcementType: 'GENERAL',
+            audience: [AudienceType.STUDENT, AudienceType.PARENT],
+            visibleFrom: new Date(),
+            createdById: session.userId,
+          },
+        });
+      } catch (annError) {
+        console.error('Failed to create automatic announcement:', annError);
+      }
+
       return {
         success: true,
         data: created,

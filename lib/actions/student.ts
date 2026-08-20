@@ -15,6 +15,15 @@ export interface CreateStudentData {
 
 export async function createStudent(data: CreateStudentData) {
   try {
+    const section = await db.section.findUnique({
+      where: { id: data.sectionId },
+      select: { classId: true }
+    });
+
+    if (!section) {
+      return { success: false, error: 'Section not found' };
+    }
+
     const student = await db.student.create({
       data: {
         aamarId: data.aamarId,
@@ -22,6 +31,7 @@ export async function createStudent(data: CreateStudentData) {
         rollNumber: data.rollNumber,
         admissionDate: data.admissionDate,
         sectionId: data.sectionId,
+        classId: section.classId,
         parentId: data.parentId,
       },
       include: {

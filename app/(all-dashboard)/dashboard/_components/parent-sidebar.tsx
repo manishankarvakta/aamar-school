@@ -2,14 +2,19 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { HomeIcon } from 'lucide-react';
+import { HomeIcon, FileTextIcon, CalendarIcon, AwardIcon, CheckSquareIcon, CreditCardIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function ParentSidebar() {
   const pathname = usePathname();
 
   const menuItems = [
-    { name: 'Parent Dashboard', href: '/dashboard/parent-dashboard', icon: HomeIcon },
+    { name: 'Overview', href: '/dashboard/parent-dashboard', icon: HomeIcon },
+    { name: 'Routine', href: '/dashboard/parent-dashboard/routine', icon: CalendarIcon },
+    { name: 'Exams', href: '/dashboard/parent-dashboard/exams', icon: AwardIcon },
+    { name: 'Attendance', href: '/dashboard/parent-dashboard/attendance', icon: CheckSquareIcon },
+    { name: 'Fees & Dues', href: '/dashboard/parent-dashboard/fees', icon: CreditCardIcon },
+    { name: 'Teacher Reports', href: '/dashboard/parent-dashboard/reports', icon: FileTextIcon },
   ];
 
   return (

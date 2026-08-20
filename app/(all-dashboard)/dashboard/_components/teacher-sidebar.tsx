@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { HomeIcon, BookOpen } from 'lucide-react';
+import { HomeIcon, BookOpen, FileTextIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function TeacherSidebar() {
@@ -11,6 +11,7 @@ export function TeacherSidebar() {
   const menuItems = [
     { name: 'Overview', href: '/dashboard/teacher-dashboard', icon: HomeIcon },
     { name: 'Class Routine', href: '/dashboard/teacher-dashboard/routine', icon: BookOpen },
+    { name: 'Students & Reports', href: '/dashboard/teacher-dashboard/reports', icon: FileTextIcon },
   ];
 
   return (

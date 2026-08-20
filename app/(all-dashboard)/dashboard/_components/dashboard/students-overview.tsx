@@ -23,17 +23,17 @@ const StatCard = ({ label, value, change, changeType }: { label: string; value: 
 );
 
 export function StudentsOverview({
-  totalStudents = "12,200",
-  newAdmissions = "3,900",
-  dropouts = "10",
-  boys = "6,000",
-  girls = "6,200",
-  studentsChange = "+10%",
-  admissionsChange = "+10%",
-  dropoutsChange = "-1.8%",
-  studentsChangeType = "increase",
-  admissionsChangeType = "increase",
-  dropoutsChangeType = "decrease",
+  totalStudents = 0,
+  newAdmissions = 0,
+  dropouts = 0,
+  boys = 0,
+  girls = 0,
+  studentsChange,
+  admissionsChange,
+  dropoutsChange,
+  studentsChangeType,
+  admissionsChangeType,
+  dropoutsChangeType,
 } : {
   totalStudents?: string | number;
   newAdmissions?: string | number;
@@ -60,10 +60,12 @@ export function StudentsOverview({
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
             <CardTitle className="text-base font-medium">Students overview</CardTitle>
-            <div className="flex items-center text-xs text-green-600">
-              <TrendingUp className="h-3 w-3 mr-1" />
-              120% higher than last year
-            </div>
+            {studentsChange && (
+              <div className="flex items-center text-xs text-green-600">
+                <TrendingUp className="h-3 w-3 mr-1" />
+                {studentsChange} higher than last year
+              </div>
+            )}
           </div>
           <Select defaultValue="last-year">
             <SelectTrigger className="w-[120px] h-8 text-xs">

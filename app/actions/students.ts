@@ -115,13 +115,31 @@ export async function updateStudent(studentId: string, formData: {
         },
       });
 
+      // Get classId if section is changing
+      let newClassId: string | undefined = undefined;
+      if (formData.sectionId && formData.sectionId !== existingStudent.sectionId) {
+        const section = await tx.section.findFirst({
+          where: {
+            id: formData.sectionId,
+            aamarId: session.aamarId,
+          },
+        });
+        if (!section) {
+          throw new Error('New section not found');
+        }
+        newClassId = section.classId;
+      }
+
       // Update student information
       const updatedStudent = await tx.student.update({
         where: { id: studentId },
         data: {
           rollNumber: formData.rollNumber,
           admissionDate: new Date(formData.admissionDate),
-          ...(formData.sectionId ? { sectionId: formData.sectionId } : {}),
+          ...(formData.sectionId ? { 
+            sectionId: formData.sectionId,
+            classId: newClassId || existingStudent.classId,
+          } : {}),
         },
       });
 
@@ -739,6 +757,7 @@ export async function createStudent(formData: StudentFormData) {
           rollNumber: formData.rollNumber,
           admissionDate: new Date(formData.admissionDate),
           sectionId: formData.sectionId,
+          classId: section.classId,
           parentId: formData.parentId,
         },
       });

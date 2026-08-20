@@ -1,7 +1,3 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cookies } from "next/headers";
-import { StudentsOverview } from "./_components/dashboard/students-overview";
-import { TeachersOverview } from "./_components/dashboard/teachers-overview";
 import { getSubjects, getSubjectStats } from "@/app/actions/subjects";
 import { getTeacherStats, getTopTeachers } from "@/app/actions/teachers";
 import { getStudentStats } from "@/app/actions/students";
@@ -14,183 +10,126 @@ import {
 } from "@/app/actions/attendance";
 import { getPerformanceStats } from "@/app/actions/exams";
 import { getAnnouncements, getTeacherAnnouncements } from "@/app/actions/announcements";
-import { OverallAttendance } from "./_components/dashboard/overall-attendance";
-import { Announcements } from "./_components/dashboard/announcements";
-import { Performance } from "./_components/dashboard/performance";
-import { DashboardCalendar } from "./_components/dashboard/calendar";
-import { OnLeave } from "./_components/dashboard/on-leave";
-import { TeachersAttendance } from "./_components/dashboard/teachers-attendance";
-import { TeachersPerformance } from "./_components/dashboard/teachers-performance";
-import { TeachersOnLeave } from "./_components/dashboard/teachers-on-leave";
-import { TeachersAnnouncements } from "./_components/dashboard/teachers-announcements";
-import { Book, FlaskConical, Library, Ruler } from "lucide-react";
-
-const icons = [
-  { Icon: Book, props: { className: "absolute top-8 left-8 w-12 h-12 text-gray-700/40 transform -rotate-12 opacity-40" } },
-  { Icon: FlaskConical, props: { className: "absolute top-16 right-1/4 w-10 h-10 text-gray-700/40 transform rotate-12 opacity-40" } },
-  { Icon: Ruler, props: { className: "absolute bottom-4 left-1/4 w-12 h-12 text-gray-700/40 transform rotate-6 opacity-40" } },
-  { Icon: Library, props: { className: "absolute top-4 right-8 w-16 h-16 text-gray-700/40 transform -rotate-6 opacity-40" } },
-];
+import { DashboardClient } from "./_components/dashboard/dashboard-client";
+import { requireAuth } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
 
 export default async function DashboardPage() {
   const todayStr = new Date().toISOString().split("T")[0];
 
-  const cookieStore = await cookies();
-  const selectedBranchId = cookieStore.get('selectedBranchId')?.value || 'all';
-  const branchIdParam = selectedBranchId === 'all' ? undefined : selectedBranchId;
+  const session = await requireAuth();
 
-  // Fetch all dashboard data in parallel
-  const [
-    subjectsResult,
-    subjectStatsResult,
-    teacherStatsResult,
-    studentStatsResult,
-    studentAttendanceStatsResult,
-    teacherAttendanceStatsResult,
-    studentsOnLeaveResult,
-    teachersOnLeaveResult,
-    detailedTeachersOnLeaveResult,
-    performanceStatsResult,
-    topTeachersResult,
-    announcementsResult,
-    teacherAnnouncementsResult,
-  ] = await Promise.all([
-    getSubjects(branchIdParam),
-    getSubjectStats(branchIdParam),
-    getTeacherStats(branchIdParam),
-    getStudentStats(branchIdParam),
-    getAttendanceStats(todayStr, branchIdParam),
-    getTeacherAttendanceStats(todayStr, branchIdParam),
-    getStudentsOnLeaveToday(branchIdParam),
-    getTeachersOnLeaveToday(branchIdParam),
-    getDetailedTeachersOnLeave(branchIdParam),
-    getPerformanceStats(branchIdParam),
-    getTopTeachers(branchIdParam),
-    getAnnouncements(branchIdParam),
-    getTeacherAnnouncements(branchIdParam),
-  ]);
+  // Get all branches for this organization
+  const branches = await prisma.branch.findMany({
+    where: { aamarId: session.aamarId },
+    select: { id: true }
+  });
 
-  // Extract data safely
-  const totalStudents = subjectsResult.success && subjectsResult.data
-    ? subjectsResult.data.reduce((sum: number, s: any) => sum + (s.class?.studentCount || 0), 0)
-    : 0;
-  
-  const totalTeachers = teacherStatsResult.success && teacherStatsResult.data && typeof teacherStatsResult.data === 'object' && 'totalTeachers' in teacherStatsResult.data
-    ? teacherStatsResult.data.totalTeachers
-    : 0;
-  
-  const activeTeachers = teacherStatsResult.success && teacherStatsResult.data && typeof teacherStatsResult.data === 'object' && 'activeTeachers' in teacherStatsResult.data
-    ? teacherStatsResult.data.activeTeachers
-    : 0;
+  const branchIds = ['all', ...branches.map((b) => b.id)];
 
-  const studentStats = studentStatsResult.success && studentStatsResult.data
-    ? {
-        totalStudents: studentStatsResult.data.totalStudents,
-        newAdmissions: studentStatsResult.data.recentAdmissions,
-        dropouts: 0,
-        boys: studentStatsResult.data.maleStudents,
-        girls: studentStatsResult.data.femaleStudents,
+  // Fetch all dashboard data for all branches in parallel
+  const preloadedDataPromises = branchIds.map(async (branchId) => {
+    const branchIdParam = branchId === 'all' ? undefined : branchId;
+
+    const [
+      subjectsResult,
+      subjectStatsResult,
+      teacherStatsResult,
+      studentStatsResult,
+      studentAttendanceStatsResult,
+      teacherAttendanceStatsResult,
+      studentsOnLeaveResult,
+      teachersOnLeaveResult,
+      detailedTeachersOnLeaveResult,
+      performanceStatsResult,
+      topTeachersResult,
+      announcementsResult,
+      teacherAnnouncementsResult,
+    ] = await Promise.all([
+      getSubjects(branchIdParam),
+      getSubjectStats(branchIdParam),
+      getTeacherStats(branchIdParam),
+      getStudentStats(branchIdParam),
+      getAttendanceStats(todayStr, branchIdParam),
+      getTeacherAttendanceStats(todayStr, branchIdParam),
+      getStudentsOnLeaveToday(branchIdParam),
+      getTeachersOnLeaveToday(branchIdParam),
+      getDetailedTeachersOnLeave(branchIdParam),
+      getPerformanceStats(branchIdParam),
+      getTopTeachers(branchIdParam),
+      getAnnouncements(branchIdParam),
+      getTeacherAnnouncements(branchIdParam),
+    ]);
+
+    // Extract data safely
+    const totalStudents = subjectsResult.success && subjectsResult.data
+      ? subjectsResult.data.reduce((sum: number, s: any) => sum + (s.class?.studentCount || 0), 0)
+      : 0;
+    
+    const totalTeachers = teacherStatsResult.success && teacherStatsResult.data && typeof teacherStatsResult.data === 'object' && 'totalTeachers' in teacherStatsResult.data
+      ? teacherStatsResult.data.totalTeachers
+      : 0;
+    
+    const activeTeachers = teacherStatsResult.success && teacherStatsResult.data && typeof teacherStatsResult.data === 'object' && 'activeTeachers' in teacherStatsResult.data
+      ? teacherStatsResult.data.activeTeachers
+      : 0;
+
+    const studentStats = studentStatsResult.success && studentStatsResult.data
+      ? {
+          totalStudents: studentStatsResult.data.totalStudents,
+          newAdmissions: studentStatsResult.data.recentAdmissions,
+          dropouts: 0,
+          boys: studentStatsResult.data.maleStudents,
+          girls: studentStatsResult.data.femaleStudents,
+        }
+      : { totalStudents: totalStudents || 0, newAdmissions: 0, dropouts: 0, boys: 0, girls: 0 };
+
+    const studentAttendance = studentAttendanceStatsResult.success
+      ? studentAttendanceStatsResult.stats
+      : { presentToday: 0, absentToday: 0, lateToday: 0 };
+
+    const studentsOnLeave = studentsOnLeaveResult.success && studentsOnLeaveResult.data ? studentsOnLeaveResult.data : [];
+    const generalAnnouncements = announcementsResult.success && announcementsResult.data ? announcementsResult.data : [];
+
+    const performanceStats = performanceStatsResult.success && performanceStatsResult.data
+      ? performanceStatsResult.data
+      : { averagePercentage: 85, grade: "Excellent" };
+
+    const teachersOnLeaveCount = teachersOnLeaveResult.success && teachersOnLeaveResult.data ? teachersOnLeaveResult.data.length : 0;
+    
+    const teacherAttendance = teacherAttendanceStatsResult.success
+      ? teacherAttendanceStatsResult.stats
+      : { presentToday: 0, absentToday: 0, lateToday: 0 };
+
+    const topTeachersList = topTeachersResult.success && topTeachersResult.data ? topTeachersResult.data : [];
+    const detailedTeachersOnLeave = detailedTeachersOnLeaveResult.success && detailedTeachersOnLeaveResult.data ? detailedTeachersOnLeaveResult.data : [];
+    const staffAnnouncements = teacherAnnouncementsResult.success && teacherAnnouncementsResult.data ? teacherAnnouncementsResult.data : [];
+
+    return {
+      branchId,
+      data: {
+        totalStudents,
+        totalTeachers,
+        activeTeachers,
+        studentStats,
+        studentAttendance,
+        studentsOnLeave,
+        generalAnnouncements,
+        performanceStats,
+        teachersOnLeaveCount,
+        teacherAttendance,
+        topTeachersList,
+        detailedTeachersOnLeave,
+        staffAnnouncements,
       }
-    : { totalStudents: totalStudents || 0, newAdmissions: 0, dropouts: 0, boys: 0, girls: 0 };
+    };
+  });
 
-  const studentAttendance = studentAttendanceStatsResult.success
-    ? studentAttendanceStatsResult.stats
-    : { presentToday: 0, absentToday: 0, lateToday: 0 };
+  const resolvedPreloadedData = await Promise.all(preloadedDataPromises);
+  const preloadedDataMap: Record<string, any> = {};
+  resolvedPreloadedData.forEach((item) => {
+    preloadedDataMap[item.branchId] = item.data;
+  });
 
-  const studentsOnLeave = studentsOnLeaveResult.success && studentsOnLeaveResult.data ? studentsOnLeaveResult.data : [];
-  const generalAnnouncements = announcementsResult.success && announcementsResult.data ? announcementsResult.data : [];
-
-  const performanceStats = performanceStatsResult.success && performanceStatsResult.data
-    ? performanceStatsResult.data
-    : { averagePercentage: 85, grade: "Excellent" };
-
-  // Teacher specific stats
-  const teachersOnLeaveCount = teachersOnLeaveResult.success && teachersOnLeaveResult.data ? teachersOnLeaveResult.data.length : 0;
-  
-  const teacherAttendance = teacherAttendanceStatsResult.success
-    ? teacherAttendanceStatsResult.stats
-    : { presentToday: 0, absentToday: 0, lateToday: 0 };
-
-  const topTeachersList = topTeachersResult.success && topTeachersResult.data ? topTeachersResult.data : [];
-  const detailedTeachersOnLeave = detailedTeachersOnLeaveResult.success && detailedTeachersOnLeaveResult.data ? detailedTeachersOnLeaveResult.data : [];
-  const staffAnnouncements = teacherAnnouncementsResult.success && teacherAnnouncementsResult.data ? teacherAnnouncementsResult.data : [];
-
-  return (
-    <div className="flex-1 space-y-3">
-      <Tabs defaultValue="students" className="space-y-3">
-        <div className="relative px-6 overflow-hidden pt-4">
-          <div className="relative z-10">
-            <div className="flex items-start justify-between">
-              <div className="mb-3">
-                  <h2 className="text-xl font-bold">Welcome Back,</h2>
-                  <p className="text-xs">Here&apos;s your updated overview</p>
-              </div>
-              <TabsList className="border border-slate-700 h-8">
-                  <TabsTrigger value="students" className=" text-xs px-3">Students</TabsTrigger>
-                  <TabsTrigger value="teachers" className=" text-xs px-3">Teachers</TabsTrigger>
-              </TabsList>
-            </div>
-          </div>
-        </div>
-
-        <TabsContent value="students" className="space-y-3 px-4 md:px-6 mt-[-80px] z-10 pb-[150px]">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-            <div className="lg:col-span-2 space-y-3">
-              <StudentsOverview
-                totalStudents={studentStats.totalStudents}
-                newAdmissions={studentStats.newAdmissions}
-                dropouts={studentStats.dropouts}
-                boys={studentStats.boys}
-                girls={studentStats.girls}
-              />
-              <OverallAttendance
-                present={studentAttendance.presentToday}
-                absent={studentAttendance.absentToday}
-                late={studentAttendance.lateToday}
-              />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <Performance
-                  boys={studentStats.boys}
-                  girls={studentStats.girls}
-                  averagePercentage={performanceStats.averagePercentage}
-                  grade={performanceStats.grade}
-                />
-                <DashboardCalendar />
-              </div>
-            </div>
-            <div className="lg:col-span-1 space-y-3">
-              <OnLeave onLeaveStaff={studentsOnLeave} />
-              <Announcements announcementsList={generalAnnouncements} />
-            </div>
-          </div>
-        </TabsContent>
-        <TabsContent value="teachers" className="space-y-3 px-4 md:px-6 mt-[-80px] z-10 pb-[150px]">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-            <div className="lg:col-span-2 space-y-3">
-              <TeachersOverview
-                totalTeachers={totalTeachers}
-                activeTeachers={activeTeachers}
-                onLeave={teachersOnLeaveCount}
-                fullTime={totalTeachers}
-                partTime={0}
-              />
-              <TeachersAttendance
-                present={teacherAttendance.presentToday}
-                absent={teacherAttendance.absentToday}
-                late={teacherAttendance.lateToday}
-              />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <TeachersPerformance performanceDataList={topTeachersList} />
-                <DashboardCalendar />
-              </div>
-            </div>
-            <div className="lg:col-span-1 space-y-3">
-              <TeachersOnLeave teachersOnLeaveList={detailedTeachersOnLeave} />
-              <TeachersAnnouncements announcementsList={staffAnnouncements} />
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
+  return <DashboardClient preloadedDataMap={preloadedDataMap} />;
 }

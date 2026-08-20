@@ -699,18 +699,20 @@ export async function generateRollNumber(sectionId: string): Promise<string> {
 /**
  * Get admission applications/students
  */
-export async function getAdmissionApplications() {
-  console.log("📋 Getting admission applications...");
+export async function getAdmissionApplications(branchId?: string) {
+  console.log("📋 Getting admission applications for branch:", branchId);
 
   try {
     const session = await requireAuth();
     console.log("✅ Session data for applications:", {
       aamarId: session.aamarId,
+      branchId,
     });
 
     const students = await prisma.student.findMany({
       where: {
         aamarId: session.aamarId,
+        ...(branchId && branchId !== 'all' ? { user: { branchId } } : {}),
       },
       include: {
         user: {
@@ -786,19 +788,21 @@ export async function getAdmissionApplications() {
 /**
  * Get admission statistics
  */
-export async function getAdmissionStats() {
-  console.log("📊 Getting admission statistics...");
+export async function getAdmissionStats(branchId?: string) {
+  console.log("📊 Getting admission statistics for branch:", branchId);
 
   try {
     const session = await requireAuth();
     console.log("✅ Session data for stats:", {
       aamarId: session.aamarId,
+      branchId,
     });
 
     // Get all students for the organization
     const students = await prisma.student.findMany({
       where: {
         aamarId: session.aamarId,
+        ...(branchId && branchId !== 'all' ? { user: { branchId } } : {}),
       },
       include: {
         user: {
@@ -901,14 +905,15 @@ export async function getAdmissionStats() {
 /**
  * Search admission applications
  */
-export async function searchAdmissions(query: string) {
-  console.log("🔍 Searching admissions with query:", query);
+export async function searchAdmissions(query: string, branchId?: string) {
+  console.log("🔍 Searching admissions with query:", query, "and branch:", branchId);
 
   try {
     const session = await requireAuth();
     console.log("✅ Session data for search:", {
       aamarId: session.aamarId,
       query,
+      branchId,
     });
 
     if (!query || query.trim().length < 2) {
@@ -921,6 +926,7 @@ export async function searchAdmissions(query: string) {
     const students = await prisma.student.findMany({
       where: {
         aamarId: session.aamarId,
+        ...(branchId && branchId !== 'all' ? { user: { branchId } } : {}),
         OR: [
           {
             user: {

@@ -5,6 +5,7 @@ import { Sidebar } from './_components/sidebar';
 import { StudentSidebar } from './_components/student-sidebar';
 import { ParentSidebar } from './_components/parent-sidebar';
 import { TeacherSidebar } from './_components/teacher-sidebar';
+import { SuperAdminSidebar } from './_components/super-admin-sidebar';
 import { Header } from './_components/header';
 import { BranchProvider } from '@/contexts/branch-context';
 
@@ -34,25 +35,48 @@ export default async function DashboardLayout({
   const pathname = headersList.get('x-pathname') || '';
 
   // Enforce role routing security
-  if (user.role === 'STUDENT') {
-    if (!pathname.startsWith('/dashboard/student-dashboard')) {
-      redirect('/dashboard/student-dashboard');
+  if (user.role === 'SUPER_ADMIN') {
+    // Super Admin redirection
+    if (pathname === '/dashboard') {
+      redirect('/dashboard/super-admin');
     }
-  } else if (user.role === 'PARENT') {
-    if (!pathname.startsWith('/dashboard/parent-dashboard')) {
-      redirect('/dashboard/parent-dashboard');
-    }
-  } else if (user.role === 'TEACHER') {
-    if (!pathname.startsWith('/dashboard/teacher-dashboard')) {
-      redirect('/dashboard/teacher-dashboard');
-    }
-  } else if (user.role === 'ADMIN') {
-    // Admin can browse admin routes. If they land on student or parent dashboard, it's allowed.
   } else {
-    redirect('/login');
+    // Prevent non-super-admins from accessing super-admin pages
+    if (pathname.startsWith('/dashboard/super-admin')) {
+      if (user.role === 'STUDENT') {
+        redirect('/dashboard/student-dashboard');
+      } else if (user.role === 'PARENT') {
+        redirect('/dashboard/parent-dashboard');
+      } else if (user.role === 'TEACHER') {
+        redirect('/dashboard/teacher-dashboard');
+      } else {
+        redirect('/dashboard');
+      }
+    }
+
+    if (user.role === 'STUDENT') {
+      if (!pathname.startsWith('/dashboard/student-dashboard')) {
+        redirect('/dashboard/student-dashboard');
+      }
+    } else if (user.role === 'PARENT') {
+      if (!pathname.startsWith('/dashboard/parent-dashboard')) {
+        redirect('/dashboard/parent-dashboard');
+      }
+    } else if (user.role === 'TEACHER') {
+      if (!pathname.startsWith('/dashboard/teacher-dashboard')) {
+        redirect('/dashboard/teacher-dashboard');
+      }
+    } else if (user.role === 'ADMIN') {
+      // Admin can browse admin routes. If they land on student or parent dashboard, it's allowed.
+    } else {
+      redirect('/login');
+    }
   }
 
   const renderSidebar = () => {
+    if (user.role === 'SUPER_ADMIN') {
+      return <SuperAdminSidebar />;
+    }
     if (user.role === 'STUDENT') {
       return <StudentSidebar />;
     }

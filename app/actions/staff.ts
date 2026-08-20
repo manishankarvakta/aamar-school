@@ -1,548 +1,238 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { requireAuth } from '@/lib/session';
 import { revalidatePath } from 'next/cache';
-import { Gender, UserRole } from '@prisma/client';
+import { UserRole, AttendanceStatus } from '@prisma/client';
 
-export interface StaffResult {
-  success: boolean;
-  message: string;
-  data?: any;
-}
-
-// Create new staff member
-export async function createStaff(formData: FormData): Promise<StaffResult> {
+export async function getStaffData() {
   try {
-    const data = {
-      firstName: formData.get('firstName') as string,
-      lastName: formData.get('lastName') as string,
-      email: formData.get('email') as string,
-      password: formData.get('password') as string || 'defaultPassword123',
-      phone: formData.get('phone') as string,
-      dateOfBirth: formData.get('dateOfBirth') as string,
-      gender: formData.get('gender') as Gender,
-      address: formData.get('address') as string,
-      nationality: formData.get('nationality') as string,
-      religion: formData.get('religion') as string,
-      bloodGroup: formData.get('bloodGroup') as string,
-      designation: formData.get('designation') as string,
-      department: formData.get('department') as string,
-      schoolId: formData.get('schoolId') as string,
-      branchId: formData.get('branchId') as string,
-      aamarId: formData.get('aamarId') as string || '234567',
-    };
+    const session = await requireAuth();
 
-    // Validate required fields
-    if (!data.firstName || !data.lastName || !data.email || !data.schoolId || !data.designation) {
-      return {
-        success: false,
-        message: 'Required fields are missing'
-      };
-    }
-
-    // Check if email already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: data.email }
+    // 1. Fetch all staff members
+    const staff = await prisma.staff.findMany({
+      where: { aamarId: session.aamarId },
+      include: {
+        user: {
+          include: {
+            profile: true,
+          },
+        },
+      },
+      orderBy: { user: { firstName: 'asc' } },
     });
 
-    if (existingUser) {
-      return {
-        success: false,
-        message: 'Email already exists'
-      };
-    }
+    // 2. Fetch today's attendance
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-    // Create in transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Create user
-      const user = await tx.user.create({
-        data: {
-          firstName: data.firstName,
-          lastName: data.lastName,
-          email: data.email,
-          password: data.password,
-          role: UserRole.STAFF,
-          aamarId: data.aamarId,
-          schoolId: data.schoolId,
-          branchId: data.branchId,
-        }
-      });
+    const todayAttendance = await prisma.attendance.findMany({
+      where: {
+        aamarId: session.aamarId,
+        staffId: { not: null },
+        date: {
+          gte: today,
+          lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+        },
+      },
+      include: {
+        staff: {
+          include: {
+            user: true,
+          },
+        },
+      },
+    });
 
-      // Create profile
-      await tx.profile.create({
-        data: {
-          userId: user.id,
-          aamarId: data.aamarId,
-          phone: data.phone,
-          dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
-          gender: data.gender,
-          address: data.address,
-          nationality: data.nationality,
-          religion: data.religion,
-          bloodGroup: data.bloodGroup,
-        }
-      });
+    // 3. Fetch leaves
+    const leaves = await prisma.staffLeave.findMany({
+      where: { aamarId: session.aamarId },
+      include: {
+        staff: {
+          include: {
+            user: true,
+          },
+        },
+      },
+      orderBy: { appliedDate: 'desc' },
+    });
 
-      // Create staff record
-      const staff = await tx.staff.create({
-        data: {
-          userId: user.id,
-          aamarId: data.aamarId,
-          designation: data.designation,
-          department: data.department,
-        }
-      });
+    const currentDateStr = new Date().toISOString().split('T')[0];
 
-      return { user, staff };
+    return {
+      success: true,
+      data: {
+        staff: staff.map((st) => {
+          const isOnLeave = leaves.some(
+            (l) => l.staffId === st.id && l.status === 'Approved' &&
+            l.startDate.toISOString().split('T')[0] <= currentDateStr &&
+            l.endDate.toISOString().split('T')[0] >= currentDateStr
+          );
+          return {
+            id: st.id,
+            employeeId: st.user.email.split('@')[0].toUpperCase(), // fallback employee ID
+            name: `${st.user.firstName} ${st.user.lastName}`,
+            position: st.designation,
+            department: st.department,
+            joinDate: st.joiningDate.toISOString().split('T')[0],
+            phone: st.user.profile?.phone || 'N/A',
+            email: st.user.email,
+            salary: st.salary || 25000,
+            status: isOnLeave ? 'On Leave' : st.user.isActive ? 'Active' : 'Inactive',
+            workingHours: st.workingHours,
+            photo: st.user.profile?.avatar || '',
+          };
+        }),
+        attendance: todayAttendance.map((a) => ({
+          id: a.id,
+          employeeId: a.staff?.user.email.split('@')[0].toUpperCase() || '',
+          name: a.staff ? `${a.staff.user.firstName} ${a.staff.user.lastName}` : 'Unknown Staff',
+          department: a.staff?.department || 'N/A',
+          checkIn: a.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          checkOut: a.updatedAt > a.createdAt ? a.updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A',
+          hoursWorked: 9, // dummy fallback
+          status: a.status === AttendanceStatus.PRESENT ? 'Present' : 'Absent',
+          date: a.date.toISOString().split('T')[0],
+        })),
+        leaves: leaves.map((l) => ({
+          id: l.id,
+          employeeId: l.staff.user.email.split('@')[0].toUpperCase(),
+          name: `${l.staff.user.firstName} ${l.staff.user.lastName}`,
+          leaveType: l.leaveType,
+          startDate: l.startDate.toISOString().split('T')[0],
+          endDate: l.endDate.toISOString().split('T')[0],
+          days: Math.ceil((l.endDate.getTime() - l.startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1,
+          reason: l.reason || 'Personal reasons',
+          status: l.status,
+          appliedDate: l.appliedDate.toISOString().split('T')[0],
+        })),
+      },
+    };
+  } catch (error) {
+    console.error('Error fetching staff records:', error);
+    return { success: false, error: 'Failed to fetch staff records.' };
+  }
+}
+
+export async function addStaff(data: {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  designation: string;
+  department: string;
+  salary: number;
+  workingHours: string;
+}) {
+  try {
+    const session = await requireAuth();
+
+    // 1. Create unique password & User
+    const defaultPassword = '$2b$10$dummyhashedpasswordtoavoidempty'; // placeholder fallback
+
+    const newUser = await prisma.user.create({
+      data: {
+        aamarId: session.aamarId,
+        schoolId: session.schoolId,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        password: defaultPassword,
+        role: UserRole.STAFF,
+        profile: {
+          create: {
+            aamarId: session.aamarId,
+            phone: data.phone,
+          },
+        },
+        staff: {
+          create: {
+            aamarId: session.aamarId,
+            designation: data.designation,
+            department: data.department,
+            salary: data.salary,
+            workingHours: data.workingHours,
+          },
+        },
+      },
     });
 
     revalidatePath('/dashboard/staff');
-
-    return {
-      success: true,
-      message: `Staff member ${data.firstName} ${data.lastName} created successfully!`,
-      data: {
-        staffId: result.staff.id,
-        userId: result.user.id,
-      },
-    };
-
+    return { success: true, data: newUser };
   } catch (error) {
-    console.error('Create staff error:', error);
-    return {
-      success: false,
-      message: 'Failed to create staff member. Please try again.',
-    };
+    console.error('Error adding staff member:', error);
+    return { success: false, error: 'Failed to add staff member. Check duplicate email.' };
   }
 }
 
-// Get all staff by aamarId
-export async function getStaff(aamarId: string = '234567') {
+export async function deleteStaff(id: string) {
   try {
-    const staff = await prisma.staff.findMany({
-      where: {
-        user: {
-          aamarId: aamarId
-        }
-      },
-      include: {
-        user: {
-          include: {
-            profile: true,
-            branch: {
-              include: {
-                school: true
-              }
-            }
-          }
-        }
-      },
-      orderBy: {
-        user: {
-          firstName: 'asc'
-        }
-      }
-    });
+    const session = await requireAuth();
 
-    const formattedStaff = staff.map(member => ({
-      id: member.id,
-      staffId: member.id,
-      name: `${member.user.firstName} ${member.user.lastName}`,
-      firstName: member.user.firstName,
-      lastName: member.user.lastName,
-      email: member.user.email,
-      phone: member.user.profile?.phone || '',
-      dateOfBirth: member.user.profile?.dateOfBirth,
-      gender: member.user.profile?.gender,
-      address: member.user.profile?.address || '',
-      nationality: member.user.profile?.nationality || '',
-      religion: member.user.profile?.religion || '',
-      bloodGroup: member.user.profile?.bloodGroup || '',
-      designation: member.designation,
-      department: member.department,
-      joiningDate: member.createdAt,
-      branch: member.user.branch ? {
-        id: member.user.branch.id,
-        name: member.user.branch.name,
-        address: member.user.branch.address,
-        phone: member.user.branch.phone,
-      } : null,
-      school: member.user.branch ? {
-        name: member.user.branch.school.name,
-      } : null,
-      status: 'Active',
-    }));
-
-    return {
-      success: true,
-      data: formattedStaff
-    };
-
-  } catch (error) {
-    console.error('Error fetching staff:', error);
-    return {
-      success: false,
-      error: 'Failed to fetch staff'
-    };
-  }
-}
-
-// Get staff by ID
-export async function getStaffById(staffId: string) {
-  try {
     const staff = await prisma.staff.findUnique({
-      where: { id: staffId },
-      include: {
-        user: {
-          include: {
-            profile: true,
-            branch: {
-              include: {
-                school: true
-              }
-            }
-          }
-        }
-      }
+      where: { id },
     });
 
     if (!staff) {
-      return {
-        success: false,
-        error: 'Staff member not found'
-      };
+      return { success: false, error: 'Staff member not found.' };
     }
 
-    const staffDetails = {
-      id: staff.id,
-      
-      // Personal information
-      staff: {
-        firstName: staff.user.firstName,
-        lastName: staff.user.lastName,
-        email: staff.user.email,
-        phone: staff.user.profile?.phone,
-        dateOfBirth: staff.user.profile?.dateOfBirth,
-        gender: staff.user.profile?.gender,
-        address: staff.user.profile?.address,
-        nationality: staff.user.profile?.nationality,
-        religion: staff.user.profile?.religion,
-        bloodGroup: staff.user.profile?.bloodGroup,
-      },
-
-      // Professional information
-      professional: {
-        designation: staff.designation,
-        department: staff.department,
-        joiningDate: staff.createdAt,
-      },
-
-      // Branch and school information
-      branch: staff.user.branch ? {
-        name: staff.user.branch.name,
-        address: staff.user.branch.address,
-        phone: staff.user.branch.phone
-      } : null,
-
-      school: staff.user.branch ? {
-        name: staff.user.branch.school.name,
-        address: staff.user.branch.school.address,
-        phone: staff.user.branch.school.phone,
-        email: staff.user.branch.school.email
-      } : null,
-    };
-
-    return {
-      success: true,
-      data: staffDetails
-    };
-
-  } catch (error) {
-    console.error('Error fetching staff details:', error);
-    return {
-      success: false,
-      error: 'Failed to fetch staff details'
-    };
-  }
-}
-
-// Update staff
-export async function updateStaff(staffId: string, formData: FormData): Promise<StaffResult> {
-  try {
-    const data = {
-      firstName: formData.get('firstName') as string,
-      lastName: formData.get('lastName') as string,
-      email: formData.get('email') as string,
-      phone: formData.get('phone') as string,
-      dateOfBirth: formData.get('dateOfBirth') as string,
-      gender: formData.get('gender') as Gender,
-      address: formData.get('address') as string,
-      nationality: formData.get('nationality') as string,
-      religion: formData.get('religion') as string,
-      bloodGroup: formData.get('bloodGroup') as string,
-      designation: formData.get('designation') as string,
-      department: formData.get('department') as string,
-      joiningDate: formData.get('joiningDate') as string,
-      salary: formData.get('salary') as string,
-      branchId: formData.get('branchId') as string,
-      emergencyContact: formData.get('emergencyContact') as string,
-      employeeId: formData.get('employeeId') as string,
-    };
-
-    // Validate required fields
-    if (!data.firstName || !data.lastName || !data.email || !data.designation) {
-      return {
-        success: false,
-        message: 'Required fields are missing'
-      };
-    }
-
-    // Update in transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Get staff with relations
-      const staff = await tx.staff.findUnique({
-        where: { id: staffId },
-        include: {
-          user: {
-            include: {
-              profile: true
-            }
-          }
-        }
-      });
-
-      if (!staff) {
-        throw new Error('Staff member not found');
-      }
-
-      // Update user
-      await tx.user.update({
-        where: { id: staff.userId },
-        data: {
-          firstName: data.firstName,
-          lastName: data.lastName,
-          email: data.email,
-        }
-      });
-
-      // Update profile
-      await tx.profile.update({
-        where: { userId: staff.userId },
-        data: {
-          phone: data.phone,
-          dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
-          gender: data.gender,
-          address: data.address,
-          nationality: data.nationality,
-          religion: data.religion,
-          bloodGroup: data.bloodGroup,
-        }
-      });
-
-      // Update staff record
-      await tx.staff.update({
-        where: { id: staffId },
-        data: {
-          designation: data.designation,
-          department: data.department,
-        }
-      });
-
-      return staff;
+    // Delete User (cascades profile and staff relations)
+    await prisma.user.delete({
+      where: { id: staff.userId },
     });
 
     revalidatePath('/dashboard/staff');
-
-    return {
-      success: true,
-      message: `Staff member ${data.firstName} ${data.lastName} updated successfully!`,
-    };
-
+    return { success: true };
   } catch (error) {
-    console.error('Update staff error:', error);
-    return {
-      success: false,
-      message: 'Failed to update staff member. Please try again.',
-    };
+    console.error('Error deleting staff member:', error);
+    return { success: false, error: 'Failed to remove staff member.' };
   }
 }
 
-// Delete staff
-export async function deleteStaff(staffId: string): Promise<StaffResult> {
+export async function submitLeaveRequest(data: {
+  staffId: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+  reason: string;
+}) {
   try {
-    const result = await prisma.$transaction(async (tx) => {
-      // Get staff with all relations
-      const staff = await tx.staff.findUnique({
-        where: { id: staffId },
-        include: {
-          user: {
-            include: {
-              profile: true
-            }
-          }
-        }
-      });
+    const session = await requireAuth();
 
-      if (!staff) {
-        throw new Error('Staff member not found');
-      }
-
-      const staffName = `${staff.user.firstName} ${staff.user.lastName}`;
-
-      // Delete related records
-      await tx.attendance.deleteMany({
-        where: { 
-          OR: [
-            { teacherId: staffId }
-          ]
-        }
-      });
-
-      // Delete staff record
-      await tx.staff.delete({
-        where: { id: staffId }
-      });
-
-      // Delete user profile
-      await tx.profile.delete({
-        where: { userId: staff.userId }
-      });
-
-      // Delete user
-      await tx.user.delete({
-        where: { id: staff.userId }
-      });
-
-      return { staffName };
-    });
-
-    revalidatePath('/dashboard/staff');
-
-    return {
-      success: true,
-      message: `Staff member ${result.staffName} deleted successfully!`,
-    };
-
-  } catch (error) {
-    console.error('Delete staff error:', error);
-    return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Failed to delete staff member. Please try again.',
-    };
-  }
-}
-
-// Get staff statistics
-export async function getStaffStats(aamarId: string = '234567') {
-  try {
-    const totalStaff = await prisma.staff.count({
-      where: {
-        user: {
-          aamarId: aamarId
-        }
-      }
-    });
-
-    const newThisMonth = await prisma.staff.count({
-      where: {
-        user: {
-          aamarId: aamarId
-        }
-      }
-    });
-
-    // Get department-wise distribution
-    const departmentWiseCount = await prisma.staff.groupBy({
-      by: ['department'],
-      where: {
-        user: {
-          aamarId: aamarId
-        }
-      },
-      _count: {
-        id: true
-      }
-    });
-
-    return {
-      success: true,
+    const leave = await prisma.staffLeave.create({
       data: {
-        totalStaff,
-        newThisMonth,
-        departmentWiseCount,
-      }
-    };
+        aamarId: session.aamarId,
+        staffId: data.staffId,
+        leaveType: data.leaveType,
+        startDate: new Date(data.startDate),
+        endDate: new Date(data.endDate),
+        reason: data.reason,
+        status: 'Pending',
+      },
+    });
 
+    revalidatePath('/dashboard/staff');
+    return { success: true, data: leave };
   } catch (error) {
-    console.error('Error fetching staff stats:', error);
-    return {
-      success: false,
-      error: 'Failed to fetch staff statistics'
-    };
+    console.error('Error submitting leave request:', error);
+    return { success: false, error: 'Failed to submit leave request.' };
   }
 }
 
-// Search staff
-export async function searchStaff(query: string, aamarId: string = '234567') {
+export async function updateLeaveStatus(leaveId: string, status: string) {
   try {
-    const staff = await prisma.staff.findMany({
-      where: {
-        user: {
-          aamarId: aamarId,
-          OR: [
-            {
-              firstName: {
-                contains: query,
-                mode: 'insensitive'
-              }
-            },
-            {
-              lastName: {
-                contains: query,
-                mode: 'insensitive'
-              }
-            },
-            {
-              email: {
-                contains: query,
-                mode: 'insensitive'
-              }
-            }
-          ]
-        }
+    await prisma.staffLeave.update({
+      where: { id: leaveId },
+      data: {
+        status: status, // Approved / Rejected
       },
-      include: {
-        user: {
-          include: {
-            profile: true,
-            branch: true
-          }
-        }
-      },
-      take: 20
     });
 
-    const formattedStaff = staff.map(member => ({
-      id: member.id,
-      name: `${member.user.firstName} ${member.user.lastName}`,
-      email: member.user.email,
-      phone: member.user.profile?.phone || '',
-      designation: member.designation,
-      department: member.department,
-      branch: member.user.branch?.name || '',
-      joiningDate: member.createdAt,
-    }));
-
-    return {
-      success: true,
-      data: formattedStaff
-    };
-
+    revalidatePath('/dashboard/staff');
+    return { success: true };
   } catch (error) {
-    console.error('Error searching staff:', error);
-    return {
-      success: false,
-      error: 'Failed to search staff'
-    };
+    console.error('Error updating leave status:', error);
+    return { success: false, error: 'Failed to update leave status.' };
   }
-} 
+}

@@ -18,6 +18,7 @@ import {
   MegaphoneIcon,
   BookIcon,
   BuildingIcon,
+  ShieldAlert as ShieldAlertIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BranchSelector } from '@/components/branch-selector';

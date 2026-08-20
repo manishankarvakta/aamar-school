@@ -30,6 +30,7 @@ export async function POST(req: NextRequest) {
       role: user.role,
       schoolId: user.schoolId,
       branchId: user.branchId,
+      email: user.email,
     });
 
     return NextResponse.json({ token, role: user.role });

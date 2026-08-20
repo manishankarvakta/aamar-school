@@ -1,0 +1,53 @@
+app/(all-dashboard)/dashboard/admissions/components/admission-edit-form.tsx(117,31): error TS2339: Property 'previousSchool' does not exist on type '{ id: string; applicationNo: string; studentName: string; rollNumber: string; class: string; section: string; branch: string; school: string; admissionDate: string; parentName: string; parentEmail: string; ... 13 more ...; parent: { ...; }; }'.
+app/(all-dashboard)/dashboard/admissions/components/admission-edit-form.tsx(118,28): error TS2339: Property 'medicalInfo' does not exist on type '{ id: string; applicationNo: string; studentName: string; rollNumber: string; class: string; section: string; branch: string; school: string; admissionDate: string; parentName: string; parentEmail: string; ... 13 more ...; parent: { ...; }; }'.
+app/(all-dashboard)/dashboard/admissions/components/admission-edit-form.tsx(124,29): error TS2339: Property 'parentGender' does not exist on type '{ id: string; applicationNo: string; studentName: string; rollNumber: string; class: string; section: string; branch: string; school: string; admissionDate: string; parentName: string; parentEmail: string; ... 13 more ...; parent: { ...; }; }'.
+app/(all-dashboard)/dashboard/admissions/components/admission-edit-form.tsx(126,30): error TS2339: Property 'parentAddress' does not exist on type '{ id: string; applicationNo: string; studentName: string; rollNumber: string; class: string; section: string; branch: string; school: string; admissionDate: string; parentName: string; parentEmail: string; ... 13 more ...; parent: { ...; }; }'.
+app/(all-dashboard)/dashboard/admissions/components/admission-edit-form.tsx(127,33): error TS2339: Property 'emergencyContact' does not exist on type '{ id: string; applicationNo: string; studentName: string; rollNumber: string; class: string; section: string; branch: string; school: string; admissionDate: string; parentName: string; parentEmail: string; ... 13 more ...; parent: { ...; }; }'.
+app/(all-dashboard)/dashboard/admissions/components/admission-edit-form.tsx(234,20): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'SetStateAction<any[]>'.
+app/(all-dashboard)/dashboard/announcements/page.tsx(10,7): error TS2322: Type 'AnnouncementStats | { total: number; urgent: number; event: number; general: number; }' is not assignable to type 'Stats'.
+  Property 'scheduled' is missing in type '{ total: number; urgent: number; event: number; general: number; }' but required in type 'Stats'.
+app/(all-dashboard)/dashboard/class-routine/page.tsx(193,30): error TS2345: Argument of type '(d: { name: string; }) => string' is not assignable to parameter of type '(value: JsonValue, index: number, array: JsonValue[]) => string'.
+  Types of parameters 'd' and 'value' are incompatible.
+    Type 'JsonValue' is not assignable to type '{ name: string; }'.
+      Type 'null' is not assignable to type '{ name: string; }'.
+app/(all-dashboard)/dashboard/class-routine/page.tsx(196,26): error TS2345: Argument of type '(day: { start: string; end: string; }) => void' is not assignable to parameter of type '(value: JsonValue, index: number, array: JsonValue[]) => void'.
+  Types of parameters 'day' and 'value' are incompatible.
+    Type 'JsonValue' is not assignable to type '{ start: string; end: string; }'.
+      Type 'null' is not assignable to type '{ start: string; end: string; }'.
+app/(all-dashboard)/dashboard/class-routine/page.tsx(261,21): error TS2345: Argument of type 'unknown[]' is not assignable to parameter of type 'SetStateAction<{ value: string; label: string; }[]>'.
+  Type 'unknown[]' is not assignable to type '{ value: string; label: string; }[]'.
+    Type 'unknown' is not assignable to type '{ value: string; label: string; }'.
+app/(all-dashboard)/dashboard/class-routine/page.tsx(264,17): error TS2345: Argument of type 'unknown[]' is not assignable to parameter of type 'SetStateAction<string[]>'.
+  Type 'unknown[]' is not assignable to type 'string[]'.
+    Type 'unknown' is not assignable to type 'string'.
+app/(all-dashboard)/dashboard/class-routine/page.tsx(291,26): error TS2538: Type 'unknown' cannot be used as an index type.
+app/(all-dashboard)/dashboard/class-routine/page.tsx(295,26): error TS2538: Type 'unknown' cannot be used as an index type.
+app/(all-dashboard)/dashboard/settings/page.tsx(135,29): error TS2339: Property 'open' does not exist on type 'JsonObject | JsonArray'.
+  Property 'open' does not exist on type 'JsonArray'.
+app/(all-dashboard)/dashboard/settings/page.tsx(136,29): error TS2339: Property 'start' does not exist on type 'JsonObject | JsonArray'.
+  Property 'start' does not exist on type 'JsonArray'.
+app/(all-dashboard)/dashboard/settings/page.tsx(137,29): error TS2339: Property 'end' does not exist on type 'JsonObject | JsonArray'.
+  Property 'end' does not exist on type 'JsonArray'.
+app/(all-dashboard)/dashboard/settings/page.tsx(141,21): error TS18047: 'item' is possibly 'null'.
+app/(all-dashboard)/dashboard/settings/page.tsx(141,26): error TS2339: Property 'name' does not exist on type 'string | number | boolean | JsonObject | JsonArray'.
+  Property 'name' does not exist on type 'string'.
+app/(all-dashboard)/dashboard/settings/page.tsx(142,21): error TS18047: 'item' is possibly 'null'.
+app/(all-dashboard)/dashboard/settings/page.tsx(142,26): error TS2339: Property 'open' does not exist on type 'string | number | boolean | JsonObject | JsonArray'.
+  Property 'open' does not exist on type 'string'.
+app/(all-dashboard)/dashboard/settings/page.tsx(143,22): error TS18047: 'item' is possibly 'null'.
+app/(all-dashboard)/dashboard/settings/page.tsx(143,27): error TS2339: Property 'start' does not exist on type 'string | number | boolean | JsonObject | JsonArray'.
+  Property 'start' does not exist on type 'string'.
+app/(all-dashboard)/dashboard/settings/page.tsx(144,20): error TS18047: 'item' is possibly 'null'.
+app/(all-dashboard)/dashboard/settings/page.tsx(144,25): error TS2339: Property 'end' does not exist on type 'string | number | boolean | JsonObject | JsonArray'.
+  Property 'end' does not exist on type 'string'.
+app/(all-dashboard)/dashboard/transport/page.tsx(39,27): error TS2322: Type '{ routes: { id: string; routeName: string; busNumber: string; driverName: string; driverPhone: string; capacity: number; studentsAssigned: number; totalStops: number; startTime: string; endTime: string; status: string; distance: string; }[]; studentTransport: { ...; }[]; drivers: { ...; }[]; vehicles: { ...; }[]; al...' is not assignable to type '{ routes: RouteItem[]; studentTransport: StudentTransportItem[]; drivers: DriverItem[]; vehicles: VehicleItem[]; allStudents: StudentItem[]; }'.
+  Types of property 'studentTransport' are incompatible.
+    Type '{ id: string; studentName: string; studentId: string; class: string; routeName: string; routeId: string | null; stopName: string; pickupTime: string; dropTime: string; feeStatus: string; parentContact: string; photo: string; }[]' is not assignable to type 'StudentTransportItem[]'.
+      Type '{ id: string; studentName: string; studentId: string; class: string; routeName: string; routeId: string | null; stopName: string; pickupTime: string; dropTime: string; feeStatus: string; parentContact: string; photo: string; }' is not assignable to type 'StudentTransportItem'.
+        Types of property 'routeId' are incompatible.
+          Type 'string | null' is not assignable to type 'string'.
+            Type 'null' is not assignable to type 'string'.
+lib/actions/user.ts(4,46): error TS2306: File 'D:/TechSoul/aamar-school/lib/auth.ts' is not a module.
+lib/actions/user.ts(36,11): error TS2322: Type '{ phone: string | undefined; address: string | undefined; gender: $Enums.Gender | undefined; dateOfBirth: Date | undefined; }' is not assignable to type '(Without<ProfileCreateWithoutUserInput, ProfileUncheckedCreateWithoutUserInput> & ProfileUncheckedCreateWithoutUserInput) | (Without<...> & ProfileCreateWithoutUserInput) | undefined'.
+  Type '{ phone: string | undefined; address: string | undefined; gender: $Enums.Gender | undefined; dateOfBirth: Date | undefined; }' is not assignable to type 'Without<ProfileUncheckedCreateWithoutUserInput, ProfileCreateWithoutUserInput> & ProfileCreateWithoutUserInput'.
+    Property 'aamarId' is missing in type '{ phone: string | undefined; address: string | undefined; gender: $Enums.Gender | undefined; dateOfBirth: Date | undefined; }' but required in type 'ProfileCreateWithoutUserInput'.

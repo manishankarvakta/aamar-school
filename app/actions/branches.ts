@@ -140,3 +140,17 @@ export async function toggleBranchStatus(id: string, isActive: boolean) {
     return { success: false, error: "Failed to update status" };
   }
 }
+
+// ─── Get branches by aamarId ────────────────────────────────────────────────
+export async function getBranchesByAamarId(aamarId: string) {
+  try {
+    const branches = await prisma.branch.findMany({
+      where: { aamarId },
+      orderBy: { name: "asc" },
+    });
+    return { success: true, data: branches };
+  } catch (error) {
+    console.error("Error fetching branches by aamarId:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Failed to fetch branches by aamarId" };
+  }
+}

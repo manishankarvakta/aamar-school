@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { getSettings } from "@/app/actions/settings";
 import { getSubjectsForClass, getClasses } from "@/app/actions/classes";
 import { getAllTeachers } from "@/app/actions/teachers";
-import { ArrowLeft, Calendar, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Calendar, Pencil, Trash2, Plus } from "lucide-react";
 import {
   Dialog,
   DialogTrigger,
@@ -70,32 +70,56 @@ function getDynamicTimeSlotsForDay(
   duration: number,
   assignments: Record<string, Assignment>,
 ): string[] {
-  const slots: string[] = [];
-  let cur = toMinutes(start);
+  const boundaries = new Set<number>();
+  const startM = toMinutes(start);
   const endM = toMinutes(end);
-  while (cur < endM) {
-    let next: number;
-    const curTimeStr = toTime(cur);
-    // Find any assignment for this day and start time
-    const foundKey = Object.keys(assignments).find((k) =>
-      k.startsWith(`${day}|${curTimeStr}-`),
-    );
-    const assigned: Assignment | undefined = foundKey
-      ? assignments[foundKey]
-      : undefined;
-    let slotEnd: string;
-    if (assigned && assigned.classType !== "regular" && assigned.endTime) {
-      slotEnd = assigned.endTime;
-      next = toMinutes(slotEnd);
-      slots.push(`${curTimeStr}-${slotEnd}`);
-      cur = next;
-    } else {
-      const defaultEnd = Math.min(cur + duration, endM);
-      slotEnd = toTime(defaultEnd);
-      next = defaultEnd;
-      slots.push(`${curTimeStr}-${slotEnd}`);
-      cur = next;
+  boundaries.add(startM);
+  boundaries.add(endM);
+
+  // Add explicit start and end times from assignments for this day
+  Object.keys(assignments).forEach((key) => {
+    const [slotDay, slotTime] = key.split("|");
+    if (slotDay.toLowerCase() === day.toLowerCase()) {
+      const [sStart, sEnd] = slotTime.split("-");
+      boundaries.add(toMinutes(sStart));
+      boundaries.add(toMinutes(sEnd));
     }
+  });
+
+  // Add default slot boundaries
+  let cur = startM;
+  while (cur < endM) {
+    boundaries.add(cur);
+    cur += duration;
+  }
+
+  // Filter out boundaries that lie strictly inside any assignment
+  const isInsideSlot = (m: number) => {
+    return Object.entries(assignments).some(([key, val]) => {
+      const [slotDay, slotTime] = key.split("|");
+      if (slotDay.toLowerCase() !== day.toLowerCase()) return false;
+      const [sStart, sEnd] = slotTime.split("-");
+      return m > toMinutes(sStart) && m < toMinutes(sEnd);
+    });
+  };
+
+  const sortedBoundaries = Array.from(boundaries)
+    .filter((b) => !isInsideSlot(b))
+    .sort((a, b) => a - b);
+
+  const slots: string[] = [];
+  for (let i = 0; i < sortedBoundaries.length - 1; i++) {
+    const s = sortedBoundaries[i];
+    const e = sortedBoundaries[i + 1];
+    // Ignore slots outside the normal start-end unless there is a custom assignment
+    if (s >= endM) {
+      const sTimeStr = toTime(s);
+      const hasAssigned = Object.keys(assignments).some((k) =>
+        k.startsWith(`${day}|${sTimeStr}-`),
+      );
+      if (!hasAssigned) continue;
+    }
+    slots.push(`${toTime(s)}-${toTime(e)}`);
   }
   return slots;
 }
@@ -174,6 +198,101 @@ export default function ClassRoutingEditPage() {
   );
   const [classBranchId, setClassBranchId] = useState<string | null>(null);
 
+  // Quick Add form state
+  const [quickDay, setQuickDay] = useState("");
+  const [quickStartTime, setQuickStartTime] = useState("");
+  const [quickEndTime, setQuickEndTime] = useState("");
+  const [quickClassType, setQuickClassType] = useState("regular");
+  const [quickSubject, setQuickSubject] = useState("");
+  const [quickTeacher, setQuickTeacher] = useState("");
+
+  useEffect(() => {
+    if (days.length > 0 && !quickDay) {
+      setQuickDay(days[0]);
+    }
+  }, [days, quickDay]);
+
+  const handleQuickAdd = () => {
+    if (!classValue) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a Class first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!quickDay) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a Day.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!quickStartTime || !quickEndTime) {
+      toast({
+        title: "Validation Error",
+        description: "Please specify both Start Time and End Time.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const startMin = toMinutes(quickStartTime);
+    const endMin = toMinutes(quickEndTime);
+
+    if (startMin >= endMin) {
+      toast({
+        title: "Validation Error",
+        description: "Start Time must be before End Time.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check for overlaps on the same day
+    const overlap = Object.keys(assignments).some((key) => {
+      const [slotDay, slotTime] = key.split("|");
+      if (slotDay.toLowerCase() !== quickDay.toLowerCase()) return false;
+      const [sStart, sEnd] = slotTime.split("-");
+      const existingStart = toMinutes(sStart);
+      const existingEnd = toMinutes(sEnd);
+      return startMin < existingEnd && existingStart < endMin;
+    });
+
+    if (overlap) {
+      toast({
+        title: "Schedule Conflict",
+        description: "This slot overlaps with an existing class schedule on this day.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const key = `${quickDay}|${quickStartTime}-${quickEndTime}`;
+    setAssignments((prev) => ({
+      ...prev,
+      [key]: {
+        subject: quickSubject,
+        teacher: quickTeacher,
+        classType: quickClassType,
+        ...(quickClassType !== "regular" ? { endTime: quickEndTime } : {}),
+      },
+    }));
+
+    toast({
+      title: "Slot Added",
+      description: "Successfully added the slot to the routine.",
+      variant: "default",
+    });
+
+    setQuickStartTime("");
+    setQuickEndTime("");
+    setQuickSubject("");
+    setQuickTeacher("");
+    setQuickClassType("regular");
+  };
+
   console.log("subjects", subjects);
   const classTypeOptions = [
     { value: "regular", label: "Regular" },
@@ -239,8 +358,18 @@ export default function ClassRoutingEditPage() {
           setTimeSlots([]);
         }
       } else {
-        setDays([]);
-        setTimeSlots([]);
+        // Fallback default settings if school settings are not initialized yet
+        const defaultDays = [
+          "Saturday",
+          "Sunday",
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday"
+        ];
+        setDays(defaultDays);
+        setTimeSlots(getTimeSlots("08:00", "14:00", 45));
       }
       setLoading(false);
     }
@@ -588,6 +717,125 @@ export default function ClassRoutingEditPage() {
         </CardContent>
       </Card>
 
+      {/* Quick Add Timetable Slot Form */}
+      <Card className="shadow-md border border-slate-100">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center font-bold text-slate-800">
+            <Calendar className="h-5 w-5 mr-2 text-primary" />
+            Quick Add Time Schedule
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-8 gap-4 items-end">
+            <div>
+              <label className="text-xs font-semibold text-slate-700 mb-1.5 block">Class</label>
+              <Select value={classValue} onValueChange={setClassValue}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Select Class" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredClassOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-700 mb-1.5 block">Day</label>
+              <Select value={quickDay} onValueChange={setQuickDay}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Select Day" />
+                </SelectTrigger>
+                <SelectContent>
+                  {days.map((day) => (
+                    <SelectItem key={day} value={day}>
+                      {day}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <label className="text-xs font-semibold text-slate-700 mb-1.5 block">Start Time</label>
+              <input
+                type="time"
+                className="w-full h-10 px-3 py-2 border rounded-md text-sm bg-background border-input focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                value={quickStartTime}
+                onChange={(e) => setQuickStartTime(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-700 mb-1.5 block">End Time</label>
+              <input
+                type="time"
+                className="w-full h-10 px-3 py-2 border rounded-md text-sm bg-background border-input focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                value={quickEndTime}
+                onChange={(e) => setQuickEndTime(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-slate-700 mb-1.5 block">Class Type</label>
+              <Select value={quickClassType} onValueChange={setQuickClassType}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {classTypeOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className={quickClassType === "break" ? "hidden" : "block"}>
+              <label className="text-xs font-semibold text-slate-700 mb-1.5 block">Subject</label>
+              <Select value={quickSubject} onValueChange={setQuickSubject}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subjects.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className={quickClassType === "break" ? "hidden" : "block"}>
+              <label className="text-xs font-semibold text-slate-700 mb-1.5 block">Teacher</label>
+              <Select value={quickTeacher} onValueChange={setQuickTeacher}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Teacher" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teachers.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className={quickClassType === "break" ? "col-span-2 lg:col-span-3" : ""}>
+              <Button type="button" onClick={handleQuickAdd} className="w-full h-10 gap-1.5">
+                <Plus className="h-4 w-4" />
+                Add Slot
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Class Routing Table</CardTitle>
@@ -782,6 +1030,26 @@ export default function ClassRoutingEditPage() {
                           </>
                         )}
                       </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium block mb-1">
+                        Class
+                      </label>
+                      <Select
+                        value={classValue}
+                        onValueChange={(val) => setClassValue(val)}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select Class" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {filteredClassOptions.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div>
                       <label className="text-xs font-medium block mb-1">

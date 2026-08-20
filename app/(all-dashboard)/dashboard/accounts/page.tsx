@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,176 +42,317 @@ import {
   ArrowUpIcon,
   ArrowDownIcon,
 } from 'lucide-react';
-
-// Sample data
-const feeStructure = [
-  {
-    id: 1,
-    class: 'Grade 10',
-    category: 'Tuition Fee',
-    amount: 15000,
-    frequency: 'Monthly',
-    dueDate: '5th of every month',
-    status: 'Active'
-  },
-  {
-    id: 2,
-    class: 'Grade 10',
-    category: 'Exam Fee',
-    amount: 2500,
-    frequency: 'Quarterly',
-    dueDate: 'End of Quarter',
-    status: 'Active'
-  },
-  {
-    id: 3,
-    class: 'Grade 9',
-    category: 'Tuition Fee',
-    amount: 14000,
-    frequency: 'Monthly',
-    dueDate: '5th of every month',
-    status: 'Active'
-  },
-  {
-    id: 4,
-    class: 'All Classes',
-    category: 'Transport Fee',
-    amount: 3000,
-    frequency: 'Monthly',
-    dueDate: '10th of every month',
-    status: 'Active'
-  }
-];
-
-const paymentData = [
-  {
-    id: 1,
-    studentId: 'STD2024001',
-    studentName: 'Alice Johnson',
-    class: 'Grade 10',
-    rollNo: 'A001',
-    feeType: 'Tuition Fee',
-    amount: 15000,
-    dueDate: '2024-02-05',
-    paidDate: '2024-02-03',
-    status: 'Paid',
-    paymentMethod: 'Online',
-    transactionId: 'TXN123456789',
-    parent: 'John Johnson',
-    photo: '/api/placeholder/40/40'
-  },
-  {
-    id: 2,
-    studentId: 'STD2024002',
-    studentName: 'Michael Chen',
-    class: 'Grade 10',
-    rollNo: 'A002',
-    feeType: 'Tuition Fee',
-    amount: 15000,
-    dueDate: '2024-02-05',
-    paidDate: null,
-    status: 'Pending',
-    paymentMethod: null,
-    transactionId: null,
-    parent: 'David Chen',
-    photo: '/api/placeholder/40/40'
-  },
-  {
-    id: 3,
-    studentId: 'STD2024003',
-    studentName: 'Emma Rodriguez',
-    class: 'Grade 9',
-    rollNo: 'B001',
-    feeType: 'Tuition Fee',
-    amount: 14000,
-    dueDate: '2024-01-05',
-    paidDate: null,
-    status: 'Overdue',
-    paymentMethod: null,
-    transactionId: null,
-    parent: 'Carlos Rodriguez',
-    photo: '/api/placeholder/40/40'
-  },
-  {
-    id: 4,
-    studentId: 'STD2024001',
-    studentName: 'Alice Johnson',
-    class: 'Grade 10',
-    rollNo: 'A001',
-    feeType: 'Transport Fee',
-    amount: 3000,
-    dueDate: '2024-02-10',
-    paidDate: '2024-02-08',
-    status: 'Paid',
-    paymentMethod: 'Cash',
-    transactionId: 'CASH001',
-    parent: 'John Johnson',
-    photo: '/api/placeholder/40/40'
-  }
-];
-
-const expenseData = [
-  {
-    id: 1,
-    category: 'Staff Salary',
-    description: 'Monthly salary payment',
-    amount: 125000,
-    date: '2024-02-01',
-    status: 'Paid',
-    vendor: 'Staff Members',
-    paymentMethod: 'Bank Transfer'
-  },
-  {
-    id: 2,
-    category: 'Utilities',
-    description: 'Electricity bill',
-    amount: 8500,
-    date: '2024-02-03',
-    status: 'Paid',
-    vendor: 'Power Company',
-    paymentMethod: 'Online'
-  },
-  {
-    id: 3,
-    category: 'Maintenance',
-    description: 'Building repairs',
-    amount: 15000,
-    date: '2024-02-05',
-    status: 'Pending',
-    vendor: 'ABC Contractors',
-    paymentMethod: 'Cheque'
-  },
-  {
-    id: 4,
-    category: 'Supplies',
-    description: 'Office stationery',
-    amount: 2500,
-    date: '2024-02-07',
-    status: 'Paid',
-    vendor: 'Office Mart',
-    paymentMethod: 'Cash'
-  }
-];
-
-const classes = ['All Classes', 'Grade 6', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'];
-const feeTypes = ['All Types', 'Tuition Fee', 'Exam Fee', 'Transport Fee', 'Library Fee', 'Lab Fee', 'Sports Fee'];
-const paymentStatuses = ['All Status', 'Paid', 'Pending', 'Overdue', 'Partial'];
-const expenseCategories = ['All Categories', 'Staff Salary', 'Utilities', 'Maintenance', 'Supplies', 'Equipment', 'Transport'];
+import {
+  getAccountsDashboardData,
+  recordPayment,
+  createExpense,
+  createFeesForClass
+} from '@/app/actions/accounts';
+import { useBranch } from '@/contexts/branch-context';
+import { useToast } from '@/components/ui/use-toast';
+import { FeeType } from '@prisma/client';
 
 export default function AccountsPage() {
+  const { selectedBranchId } = useBranch();
+  const { toast } = useToast();
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'BDT'
+    }).format(amount);
+  };
+
   const [selectedTab, setSelectedTab] = useState('payments');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState('All Classes');
   const [selectedStatus, setSelectedStatus] = useState('All Status');
   const [selectedType, setSelectedType] = useState('All Types');
+  
+  // Dialog visibility states
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showExpenseDialog, setShowExpenseDialog] = useState(false);
+  const [showFeeCategoryDialog, setShowFeeCategoryDialog] = useState(false);
+
+  // Dynamic dashboard states
+  const [loading, setLoading] = useState(true);
+  const [paymentData, setPaymentData] = useState<any[]>([]);
+  const [expenseData, setExpenseData] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [students, setStudents] = useState<any[]>([]);
+  const [classesList, setClassesList] = useState<any[]>([]);
+  const [dashboardStats, setDashboardStats] = useState<any>(null);
+
+  // Payment form states
+  const [selectedFeeToPay, setSelectedFeeToPay] = useState<any>(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('Cash');
+  const [transactionId, setTransactionId] = useState('');
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedAccountId, setSelectedAccountId] = useState('');
+  const [paymentNotes, setPaymentNotes] = useState('');
+  const [selectedStudentId, setSelectedStudentId] = useState('');
+
+  // Expense form states
+  const [expenseCategory, setExpenseCategory] = useState('Utilities');
+  const [expenseAmount, setExpenseAmount] = useState('');
+  const [expenseDescription, setExpenseDescription] = useState('');
+  const [expenseVendor, setExpenseVendor] = useState('');
+  const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0]);
+  const [expensePaymentMethod, setExpensePaymentMethod] = useState('Cash');
+  const [expenseAccountId, setExpenseAccountId] = useState('');
+  const [expenseInvoiceNumber, setExpenseInvoiceNumber] = useState('');
+  const [expenseNotes, setExpenseNotes] = useState('');
+
+  // Fee category form states
+  const [feeClassId, setFeeClassId] = useState('');
+  const [feeType, setFeeType] = useState<FeeType>('TUITION');
+  const [feeTitle, setFeeTitle] = useState('');
+  const [feeAmount, setFeeAmount] = useState('');
+  const [feeDueDate, setFeeDueDate] = useState('');
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [selectedBranchId]);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const result = await getAccountsDashboardData(selectedBranchId);
+      if (result.success && result.data) {
+        setPaymentData(result.data.fees);
+        setExpenseData(result.data.expenses);
+        setAccounts(result.data.accounts);
+        setStudents(result.data.students);
+        setClassesList(result.data.classes);
+        setDashboardStats(result.data.stats);
+
+        if (result.data.accounts.length > 0) {
+          setSelectedAccountId(result.data.accounts[0].id);
+          setExpenseAccountId(result.data.accounts[0].id);
+        }
+        if (result.data.students.length > 0) {
+          setSelectedStudentId(result.data.students[0].id);
+        }
+        if (result.data.classes.length > 0) {
+          setFeeClassId(result.data.classes[0].id);
+        }
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: result.message || "Failed to load dashboard data"
+        });
+      }
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOpenPaymentDialog = (fee: any) => {
+    setSelectedFeeToPay(fee);
+    setPaymentAmount(fee.amount.toString());
+    setSelectedStudentId(fee.studentId || '');
+    if (accounts.length > 0) {
+      setSelectedAccountId(accounts[0].id);
+    }
+    setShowPaymentDialog(true);
+  };
+
+  const handleRecordPaymentSubmit = async () => {
+    const targetFeeId = selectedFeeToPay?.id || unpaidFees[0]?.id;
+    if (!targetFeeId) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please select a valid fee to record payment"
+      });
+      return;
+    }
+    try {
+      setLoading(true);
+      const res = await recordPayment(targetFeeId, {
+        amount: parseFloat(paymentAmount),
+        paymentMethod,
+        transactionId,
+        paymentDate,
+        accountId: selectedAccountId,
+        notes: paymentNotes
+      });
+      if (res.success) {
+        toast({
+          title: "Success",
+          description: res.message
+        });
+        setShowPaymentDialog(false);
+        setSelectedFeeToPay(null);
+        setPaymentAmount('');
+        setTransactionId('');
+        setPaymentNotes('');
+        loadDashboardData();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: res.message
+        });
+      }
+    } catch (error) {
+      console.error("Payment submission failed:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRecordExpenseSubmit = async () => {
+    if (!expenseAmount || !expenseDescription || !expenseVendor) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please fill in all required fields"
+      });
+      return;
+    }
+    try {
+      setLoading(true);
+      const res = await createExpense({
+        category: expenseCategory,
+        amount: parseFloat(expenseAmount),
+        description: expenseDescription,
+        vendor: expenseVendor,
+        date: expenseDate,
+        paymentMethod: expensePaymentMethod,
+        accountId: expenseAccountId,
+        invoiceNumber: expenseInvoiceNumber,
+        notes: expenseNotes
+      });
+      if (res.success) {
+        toast({
+          title: "Success",
+          description: res.message
+        });
+        setShowExpenseDialog(false);
+        setExpenseAmount('');
+        setExpenseDescription('');
+        setExpenseVendor('');
+        setExpenseInvoiceNumber('');
+        setExpenseNotes('');
+        loadDashboardData();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: res.message
+        });
+      }
+    } catch (error) {
+      console.error("Expense submission failed:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddFeeCategorySubmit = async () => {
+    if (!feeClassId || !feeTitle || !feeAmount || !feeDueDate) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please fill in all required fields"
+      });
+      return;
+    }
+    try {
+      setLoading(true);
+      const res = await createFeesForClass({
+        classId: feeClassId,
+        feeType: feeType,
+        title: feeTitle,
+        amount: parseFloat(feeAmount),
+        dueDate: feeDueDate
+      });
+      if (res.success) {
+        toast({
+          title: "Success",
+          description: res.message
+        });
+        setShowFeeCategoryDialog(false);
+        setFeeTitle('');
+        setFeeAmount('');
+        setFeeDueDate('');
+        loadDashboardData();
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: res.message
+        });
+      }
+    } catch (error) {
+      console.error("Fee category creation failed:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const unpaidFees = paymentData.filter(p => p.status !== 'Paid' && p.studentId === selectedStudentId);
+
+  // Group fees by class and title to represent fee structures dynamically
+  const feeStructure = [];
+  const seenStructures = new Set();
+  
+  for (const fee of paymentData) {
+    const key = `${fee.class}-${fee.feeType}-${fee.amount}`;
+    if (!seenStructures.has(key)) {
+      seenStructures.add(key);
+      feeStructure.push({
+        id: fee.id,
+        class: fee.class,
+        category: fee.feeType,
+        amount: fee.amount,
+        frequency: fee.feeType === 'TUITION' ? 'Monthly' : 'One-time',
+        dueDate: fee.dueDate,
+        status: 'Active'
+      });
+    }
+  }
+
+  // Build filter lists dynamically
+  const classes = ['All Classes', ...Array.from(new Set(paymentData.map(p => p.class)))];
+  const feeTypes = ['All Types', ...Array.from(new Set(paymentData.map(p => p.feeType)))];
+  const paymentStatuses = ['All Status', 'Paid', 'Pending', 'Overdue'];
+  const expenseCategories = ['All Categories', 'Staff Salary', 'Utilities', 'Maintenance', 'Supplies', 'Equipment', 'Transport'];
 
   const stats = [
-    { title: 'Total Collection', value: '৳8,45,000', icon: DollarSignIcon, color: 'green', change: '+12.5%' },
-    { title: 'Pending Fees', value: '৳1,25,000', icon: ClockIcon, color: 'yellow', change: '-5.2%' },
-    { title: 'Overdue Amount', value: '৳45,000', icon: AlertCircleIcon, color: 'red', change: '+2.1%' },
-    { title: 'Total Expenses', value: '৳3,85,000', icon: TrendingDownIcon, color: 'blue', change: '+8.3%' },
+    { 
+      title: 'Total Collection', 
+      value: dashboardStats ? formatCurrency(dashboardStats.totalCollection) : '৳0.00', 
+      icon: DollarSignIcon, 
+      color: 'green', 
+      change: '+12.5%' 
+    },
+    { 
+      title: 'Pending Fees', 
+      value: dashboardStats ? formatCurrency(dashboardStats.pendingFees) : '৳0.00', 
+      icon: ClockIcon, 
+      color: 'yellow', 
+      change: '-5.2%' 
+    },
+    { 
+      title: 'Overdue Amount', 
+      value: dashboardStats ? formatCurrency(dashboardStats.overdueAmount) : '৳0.00', 
+      icon: AlertCircleIcon, 
+      color: 'red', 
+      change: '+2.1%' 
+    },
+    { 
+      title: 'Total Expenses', 
+      value: dashboardStats ? formatCurrency(dashboardStats.totalExpenses) : '৳0.00', 
+      icon: TrendingDownIcon, 
+      color: 'blue', 
+      change: '+8.3%' 
+    },
   ];
 
   const filteredPayments = paymentData.filter(payment => {
@@ -229,7 +370,6 @@ export default function AccountsPage() {
       case 'Paid': return 'bg-green-100 text-green-800';
       case 'Pending': return 'bg-yellow-100 text-yellow-800';
       case 'Overdue': return 'bg-red-100 text-red-800';
-      case 'Partial': return 'bg-blue-100 text-blue-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -239,16 +379,8 @@ export default function AccountsPage() {
       case 'Paid': return CheckCircleIcon;
       case 'Pending': return ClockIcon;
       case 'Overdue': return AlertCircleIcon;
-      case 'Partial': return CreditCardIcon;
       default: return XCircleIcon;
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'BDT'
-    }).format(amount);
   };
 
   const calculateTotalCollection = () => {
@@ -399,7 +531,7 @@ export default function AccountsPage() {
                           <div className="flex items-center gap-3">
                             <Avatar className="h-8 w-8">
                               <AvatarImage src={payment.photo} />
-                              <AvatarFallback>{payment.studentName.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                              <AvatarFallback>{payment.studentName.split(' ').map((n: string) => n[0]).join('')}</AvatarFallback>
                             </Avatar>
                             <div>
                               <p className="font-medium">{payment.studentName}</p>
@@ -447,12 +579,12 @@ export default function AccountsPage() {
                                 <EyeIcon className="h-4 w-4 mr-2" />
                                 View Details
                               </DropdownMenuItem>
-                              {payment.status !== 'Paid' && (
-                                <DropdownMenuItem>
-                                  <CreditCardIcon className="h-4 w-4 mr-2" />
-                                  Record Payment
-                                </DropdownMenuItem>
-                              )}
+                               {payment.status !== 'Paid' && (
+                                 <DropdownMenuItem onClick={() => handleOpenPaymentDialog(payment)}>
+                                   <CreditCardIcon className="h-4 w-4 mr-2" />
+                                   Record Payment
+                                 </DropdownMenuItem>
+                               )}
                               <DropdownMenuItem>
                                 <ReceiptIcon className="h-4 w-4 mr-2" />
                                 Generate Receipt
@@ -480,7 +612,7 @@ export default function AccountsPage() {
         <TabsContent value="fees" className="space-y-4">
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold">Fee Structure</h3>
-            <Button className="gap-2">
+            <Button onClick={() => setShowFeeCategoryDialog(true)} className="gap-2">
               <PlusIcon className="h-4 w-4" />
               Add Fee Category
             </Button>
@@ -771,59 +903,85 @@ export default function AccountsPage() {
       </Tabs>
 
       {/* Record Payment Dialog */}
-      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+      <Dialog open={showPaymentDialog} onOpenChange={(open) => {
+        setShowPaymentDialog(open);
+        if (!open) setSelectedFeeToPay(null);
+      }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Record Payment</DialogTitle>
+            <DialogTitle>
+              {selectedFeeToPay 
+                ? `Record Payment for ${selectedFeeToPay.studentName}`
+                : "Record Payment"
+              }
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="studentSelect">Student</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select student" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentData.map((payment) => (
-                      <SelectItem key={payment.studentId} value={payment.studentId}>
-                        {payment.studentName} - {payment.class}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {selectedFeeToPay ? (
+              <div className="p-3 bg-muted rounded-lg space-y-1">
+                <p className="font-semibold text-sm">Fee Item Details:</p>
+                <p className="text-sm"><b>Student:</b> {selectedFeeToPay.studentName} ({selectedFeeToPay.class})</p>
+                <p className="text-sm"><b>Fee Type:</b> {selectedFeeToPay.feeType}</p>
+                <p className="text-sm"><b>Due Amount:</b> {formatCurrency(selectedFeeToPay.amount)}</p>
+                <p className="text-sm"><b>Due Date:</b> {selectedFeeToPay.dueDate}</p>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="feeTypeSelect">Fee Type</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select fee type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {feeTypes.slice(1).map((type) => (
-                      <SelectItem key={type} value={type}>{type}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Student</Label>
+                  <Select value={selectedStudentId} onValueChange={setSelectedStudentId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select student" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {students.map((std) => (
+                        <SelectItem key={std.id} value={std.id}>
+                          {std.name} ({std.class})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Unpaid Fees</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder={unpaidFees.length > 0 ? "Select fee to pay" : "No pending fees"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {unpaidFees.map((fee) => (
+                        <SelectItem key={fee.id} value={fee.id}>
+                          {fee.feeType} - {formatCurrency(fee.amount)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="amount">Amount</Label>
-                <Input id="amount" type="number" placeholder="Enter amount" />
+                <Label htmlFor="amount">Amount to Pay</Label>
+                <Input 
+                  id="amount" 
+                  type="number" 
+                  placeholder="Enter amount" 
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="paymentMethod">Payment Method</Label>
-                <Select>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select method" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="online">Online Payment</SelectItem>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="bank">Bank Transfer</SelectItem>
-                    <SelectItem value="cheque">Cheque</SelectItem>
+                    <SelectItem value="Cash">Cash</SelectItem>
+                    <SelectItem value="Online Payment">Online Payment</SelectItem>
+                    <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="Cheque">Cheque</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -831,27 +989,61 @@ export default function AccountsPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="transactionId">Transaction ID</Label>
-                <Input id="transactionId" placeholder="Enter transaction ID" />
+                <Label htmlFor="transactionId">Transaction ID / Reference</Label>
+                <Input 
+                  id="transactionId" 
+                  placeholder="Enter transaction ID" 
+                  value={transactionId}
+                  onChange={(e) => setTransactionId(e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="paymentDate">Payment Date</Label>
-                <Input id="paymentDate" type="date" />
+                <Input 
+                  id="paymentDate" 
+                  type="date" 
+                  value={paymentDate}
+                  onChange={(e) => setPaymentDate(e.target.value)}
+                />
               </div>
             </div>
 
             <div className="space-y-2">
+              <Label>Select Deposit Account</Label>
+              <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((acc) => (
+                    <SelectItem key={acc.id} value={acc.id}>
+                      {acc.name} (Balance: {formatCurrency(acc.balance)})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="notes">Notes (Optional)</Label>
-              <Textarea id="notes" placeholder="Enter any additional notes" />
+              <Textarea 
+                id="notes" 
+                placeholder="Enter any additional notes" 
+                value={paymentNotes}
+                onChange={(e) => setPaymentNotes(e.target.value)}
+              />
             </div>
           </div>
           
           <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
+            <Button variant="outline" onClick={() => {
+              setShowPaymentDialog(false);
+              setSelectedFeeToPay(null);
+            }}>
               Cancel
             </Button>
-            <Button onClick={() => setShowPaymentDialog(false)}>
-              Record Payment
+            <Button onClick={handleRecordPaymentSubmit} disabled={loading}>
+              {loading ? "Recording..." : "Record Payment"}
             </Button>
           </div>
         </DialogContent>
@@ -867,63 +1059,113 @@ export default function AccountsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="expenseCategory">Category</Label>
-                <Select>
+                <Select value={expenseCategory} onValueChange={setExpenseCategory}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {expenseCategories.slice(1).map((category) => (
-                      <SelectItem key={category} value={category}>{category}</SelectItem>
-                    ))}
+                    <SelectItem value="Staff Salary">Staff Salary</SelectItem>
+                    <SelectItem value="Utilities">Utilities</SelectItem>
+                    <SelectItem value="Maintenance">Maintenance</SelectItem>
+                    <SelectItem value="Supplies">Supplies</SelectItem>
+                    <SelectItem value="Equipment">Equipment</SelectItem>
+                    <SelectItem value="Transport">Transport</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="expenseAmount">Amount</Label>
-                <Input id="expenseAmount" type="number" placeholder="Enter amount" />
+                <Input 
+                  id="expenseAmount" 
+                  type="number" 
+                  placeholder="Enter amount" 
+                  value={expenseAmount}
+                  onChange={(e) => setExpenseAmount(e.target.value)}
+                />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="expenseDescription">Description</Label>
-              <Input id="expenseDescription" placeholder="Enter expense description" />
+              <Input 
+                id="expenseDescription" 
+                placeholder="Enter expense description" 
+                value={expenseDescription}
+                onChange={(e) => setExpenseDescription(e.target.value)}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="vendor">Vendor/Supplier</Label>
-                <Input id="vendor" placeholder="Enter vendor name" />
+                <Input 
+                  id="vendor" 
+                  placeholder="Enter vendor name" 
+                  value={expenseVendor}
+                  onChange={(e) => setExpenseVendor(e.target.value)}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="expenseDate">Date</Label>
-                <Input id="expenseDate" type="date" />
+                <Input 
+                  id="expenseDate" 
+                  type="date" 
+                  value={expenseDate}
+                  onChange={(e) => setExpenseDate(e.target.value)}
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="expensePaymentMethod">Payment Method</Label>
-                <Select>
+                <Select value={expensePaymentMethod} onValueChange={setExpensePaymentMethod}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select method" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="bank">Bank Transfer</SelectItem>
-                    <SelectItem value="cheque">Cheque</SelectItem>
-                    <SelectItem value="online">Online Payment</SelectItem>
+                    <SelectItem value="Cash">Cash</SelectItem>
+                    <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="Cheque">Cheque</SelectItem>
+                    <SelectItem value="Online Payment">Online Payment</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="invoiceNumber">Invoice/Bill Number</Label>
-                <Input id="invoiceNumber" placeholder="Enter invoice number" />
+                <Input 
+                  id="invoiceNumber" 
+                  placeholder="Enter invoice number" 
+                  value={expenseInvoiceNumber}
+                  onChange={(e) => setExpenseInvoiceNumber(e.target.value)}
+                />
               </div>
             </div>
 
             <div className="space-y-2">
+              <Label>Source Account</Label>
+              <Select value={expenseAccountId} onValueChange={setExpenseAccountId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Account" />
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts.map((acc) => (
+                    <SelectItem key={acc.id} value={acc.id}>
+                      {acc.name} (Balance: {formatCurrency(acc.balance)})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="expenseNotes">Notes</Label>
-              <Textarea id="expenseNotes" placeholder="Enter any additional notes" />
+              <Textarea 
+                id="expenseNotes" 
+                placeholder="Enter any additional notes" 
+                value={expenseNotes}
+                onChange={(e) => setExpenseNotes(e.target.value)}
+              />
             </div>
           </div>
           
@@ -931,8 +1173,93 @@ export default function AccountsPage() {
             <Button variant="outline" onClick={() => setShowExpenseDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={() => setShowExpenseDialog(false)}>
-              Add Expense
+            <Button onClick={handleRecordExpenseSubmit} disabled={loading}>
+              {loading ? "Adding..." : "Add Expense"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Fee Category Dialog */}
+      <Dialog open={showFeeCategoryDialog} onOpenChange={setShowFeeCategoryDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Add Class Fee Category (Assign Fees)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Class</Label>
+                <Select value={feeClassId} onValueChange={setFeeClassId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classesList.map((cls) => (
+                      <SelectItem key={cls.id} value={cls.id}>{cls.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Fee Type</Label>
+                <Select value={feeType} onValueChange={(v) => setFeeType(v as FeeType)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Fee Type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="TUITION">Tuition Fee</SelectItem>
+                    <SelectItem value="EXAM">Exam Fee</SelectItem>
+                    <SelectItem value="TRANSPORT">Transport Fee</SelectItem>
+                    <SelectItem value="LIBRARY">Library Fee</SelectItem>
+                    <SelectItem value="LABORATORY">Laboratory Fee</SelectItem>
+                    <SelectItem value="SPORTS">Sports Fee</SelectItem>
+                    <SelectItem value="ADMISSION">Admission Fee</SelectItem>
+                    <SelectItem value="MISCELLANEOUS">Miscellaneous Fee</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="feeTitle">Fee Title / Description</Label>
+                <Input 
+                  id="feeTitle" 
+                  placeholder="e.g. Monthly Tuition Fee - March" 
+                  value={feeTitle}
+                  onChange={(e) => setFeeTitle(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="feeAmount">Fee Amount (৳)</Label>
+                <Input 
+                  id="feeAmount" 
+                  type="number" 
+                  placeholder="Enter amount" 
+                  value={feeAmount}
+                  onChange={(e) => setFeeAmount(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="feeDueDate">Due Date</Label>
+              <Input 
+                id="feeDueDate" 
+                type="date" 
+                value={feeDueDate}
+                onChange={(e) => setFeeDueDate(e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => setShowFeeCategoryDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddFeeCategorySubmit} disabled={loading}>
+              {loading ? "Assigning..." : "Assign Fees"}
             </Button>
           </div>
         </DialogContent>

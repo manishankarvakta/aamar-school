@@ -23,6 +23,8 @@ import {
   MoreVerticalIcon,
   EditIcon,
   TrashIcon,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { AdmissionForm } from './components/admission-form';
 import { 
@@ -123,13 +125,17 @@ const RELATIONS = [
 ];
 
 export default function AdmissionsPage() {
-  const { selectedBranch } = useBranch();
+  const { selectedBranchId, selectedBranch } = useBranch();
   const { toast } = useToast();
   const [selectedTab, setSelectedTab] = useState('applications');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [admittedSearchTerm, setAdmittedSearchTerm] = useState('');
+  const [selectedAdmittedClass, setSelectedAdmittedClass] = useState('all');
+  const [currentAdmittedPage, setCurrentAdmittedPage] = useState(1);
   const [showTestDialog, setShowTestDialog] = useState(false);
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -148,7 +154,7 @@ export default function AdmissionsPage() {
   // Load applications and dashboard data
   useEffect(() => {
     loadDashboardData();
-  }, []);
+  }, [selectedBranchId]);
 
   const loadDashboardData = async () => {
     try {
@@ -157,8 +163,8 @@ export default function AdmissionsPage() {
       
       // Load all data in parallel for better performance
       const [applicationsResult, statsResult] = await Promise.all([
-        getAdmissionApplications(), // Get recent admissions
-        getAdmissionStats(),
+        getAdmissionApplications(selectedBranchId), // Get recent admissions
+        getAdmissionStats(selectedBranchId),
       ]);
 
       // getAdmissionApplications returns array directly
@@ -184,7 +190,7 @@ export default function AdmissionsPage() {
 
     try {
       setLoading(true);
-      const searchResult = await searchAdmissions(query);
+      const searchResult = await searchAdmissions(query, selectedBranchId);
       // searchAdmissions returns array directly
       setApplications(searchResult);
     } catch (error) {
@@ -238,6 +244,49 @@ export default function AdmissionsPage() {
     const matchesStatus = selectedStatus === 'All' || app.status === selectedStatus;
     return matchesSearch && matchesClass && matchesStatus;
   });
+
+  const itemsPerPage = 10;
+  
+  // Reset pagination when search or filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedClass, selectedStatus]);
+
+  const totalItems = filteredApplications.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+  const paginatedApplications = filteredApplications.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const startItem = totalItems > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0;
+  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+  // Admitted students filter & pagination
+  const filteredAdmittedStudents = applications.filter(app => {
+    const matchesSearch = app.studentName.toLowerCase().includes(admittedSearchTerm.toLowerCase()) ||
+                         app.rollNumber.toLowerCase().includes(admittedSearchTerm.toLowerCase()) ||
+                         app.applicationNo.toLowerCase().includes(admittedSearchTerm.toLowerCase());
+    const matchesClass = selectedAdmittedClass === 'all' || app.class === selectedAdmittedClass;
+    return matchesSearch && matchesClass;
+  });
+
+  // Reset pagination for admitted students when filters change
+  useEffect(() => {
+    setCurrentAdmittedPage(1);
+  }, [admittedSearchTerm, selectedAdmittedClass]);
+
+  const totalAdmittedItems = filteredAdmittedStudents.length;
+  const totalAdmittedPages = Math.ceil(totalAdmittedItems / itemsPerPage);
+
+  const paginatedAdmittedStudents = filteredAdmittedStudents.slice(
+    (currentAdmittedPage - 1) * itemsPerPage,
+    currentAdmittedPage * itemsPerPage
+  );
+
+  const startAdmittedItem = totalAdmittedItems > 0 ? (currentAdmittedPage - 1) * itemsPerPage + 1 : 0;
+  const endAdmittedItem = Math.min(currentAdmittedPage * itemsPerPage, totalAdmittedItems);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -556,84 +605,135 @@ export default function AdmissionsPage() {
                   </div>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Student</TableHead>
-                      <TableHead>Application No</TableHead>
-                      <TableHead>Class</TableHead>
-                      <TableHead>Roll Number</TableHead>
-                      <TableHead>Parent</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Admission Date</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredApplications.map((app) => {
-                      const StatusIcon = getStatusIcon(app.status);
-                      return (
-                        <TableRow key={app.id}>
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-8 w-8">
-                                <AvatarFallback>
-                                  {app.studentName.split(' ').map(n => n[0]).join('')}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <div className="font-medium">{app.studentName}</div>
-                                {/* <div className="text-sm text-muted-foreground">{app.studentEmail}</div> */}
+                <>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Student</TableHead>
+                        <TableHead>Application No</TableHead>
+                        <TableHead>Class</TableHead>
+                        <TableHead>Roll Number</TableHead>
+                        <TableHead>Parent</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Admission Date</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paginatedApplications.map((app) => {
+                        const StatusIcon = getStatusIcon(app.status);
+                        return (
+                          <TableRow key={app.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-8 w-8">
+                                  <AvatarFallback>
+                                    {app.studentName.split(' ').map(n => n[0]).join('')}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <div className="font-medium">{app.studentName}</div>
+                                  {/* <div className="text-sm text-muted-foreground">{app.studentEmail}</div> */}
+                                </div>
                               </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="font-mono text-sm">{app.applicationNo}</TableCell>
-                          <TableCell>{app.class}</TableCell>
-                          <TableCell className="font-mono">{app.rollNumber}</TableCell>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">{app.parentName}</div>
-                              <div className="text-sm text-muted-foreground">{app.parentPhone}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={getStatusColor(app.status)}>
-                              <StatusIcon className="h-3 w-3 mr-1" />
-                              {app.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{new Date(app.admissionDate).toLocaleDateString()}</TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="sm">
-                                  <MoreVerticalIcon className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleViewDetails(app)}>
-                                  <EyeIcon className="h-4 w-4 mr-2" />
-                                  View Details
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleEdit(app)}>
-                                  <EditIcon className="h-4 w-4 mr-2" />
-                                  Edit
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  className="text-red-600" 
-                                  onClick={() => handleDelete(app)}
-                                >
-                                  <TrashIcon className="h-4 w-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">{app.applicationNo}</TableCell>
+                            <TableCell>{app.class}</TableCell>
+                            <TableCell className="font-mono">{app.rollNumber}</TableCell>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">{app.parentName}</div>
+                                <div className="text-sm text-muted-foreground">{app.parentPhone}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={getStatusColor(app.status)}>
+                                <StatusIcon className="h-3 w-3 mr-1" />
+                                {app.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{new Date(app.admissionDate).toLocaleDateString()}</TableCell>
+                            <TableCell className="text-right">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    <MoreVerticalIcon className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleViewDetails(app)}>
+                                    <EyeIcon className="h-4 w-4 mr-2" />
+                                    View Details
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleEdit(app)}>
+                                    <EditIcon className="h-4 w-4 mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    className="text-red-600" 
+                                    onClick={() => handleDelete(app)}
+                                  >
+                                    <TrashIcon className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+
+                  {/* Custom Premium Pagination */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-border/60 w-full">
+                    <div className="text-sm text-muted-foreground font-medium">
+                      Showing <span className="font-semibold text-foreground">{startItem}</span> to <span className="font-semibold text-foreground">{endItem}</span> of <span className="font-semibold text-foreground">{totalItems}</span> applications
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                        disabled={currentPage === 1 || totalPages <= 1}
+                        className="h-9 px-4 rounded-xl border border-border/80 text-foreground font-semibold text-xs gap-1.5 transition-all duration-200"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                        <span>Prev</span>
+                      </Button>
+
+                      {totalPages > 1 && (
+                        <div className="hidden sm:flex items-center gap-1.5 px-2">
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                            <button
+                              key={page}
+                              onClick={() => setCurrentPage(page)}
+                              className={`w-8 h-8 rounded-lg text-xs font-bold transition-all duration-200 ${
+                                currentPage === page
+                                  ? 'bg-primary text-primary-foreground shadow-md shadow-primary/10'
+                                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                        disabled={currentPage === totalPages || totalPages <= 1}
+                        className="h-9 px-4 rounded-xl border border-border/80 text-foreground font-semibold text-xs gap-1.5 transition-all duration-200"
+                      >
+                        <span>Next</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -760,25 +860,168 @@ export default function AdmissionsPage() {
             </Card>
           )}
 
-          {/* Recent Admissions Summary */}
+          {/* All Admitted Students Card */}
           <Card>
-            <CardHeader>
-              <CardTitle>All Admitted Students ({applications.length})</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+              <CardTitle>All Admitted Students ({filteredAdmittedStudents.length})</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <UserIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium">Showing {applications.length} admitted students</h3>
-                <p className="text-muted-foreground">
-                  Data loaded from database with complete student information
-                </p>
-                {dashboardStats && (
-                  <div className="mt-4 text-sm text-muted-foreground">
-                    <p>Total across all branches: {dashboardStats.totalStudents} students</p>
-                    <p>Recent admissions (30 days): {dashboardStats.recentAdmissions}</p>
+            <CardContent className="space-y-6">
+              {/* Filters */}
+              <div className="flex flex-col sm:flex-row gap-4 mb-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search admitted students..."
+                      value={admittedSearchTerm}
+                      onChange={(e) => setAdmittedSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
                   </div>
-                )}
+                </div>
+                <Select value={selectedAdmittedClass} onValueChange={setSelectedAdmittedClass}>
+                  <SelectTrigger className="w-full sm:w-40">
+                    <SelectValue placeholder="Class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Classes</SelectItem>
+                    {classes.map((cls) => (
+                      <SelectItem key={cls} value={cls}>{cls}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+
+              {loading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-muted-foreground">Loading admitted students...</div>
+                </div>
+              ) : filteredAdmittedStudents.length === 0 ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-center">
+                    <UserIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <h3 className="text-lg font-medium">No admitted students found</h3>
+                    <p className="text-muted-foreground">No students match your search filters.</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Student</TableHead>
+                          <TableHead>Roll Number</TableHead>
+                          <TableHead>Class</TableHead>
+                          <TableHead>Section</TableHead>
+                          <TableHead>Branch</TableHead>
+                          <TableHead>Admission Date</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedAdmittedStudents.map((student) => (
+                          <TableRow key={student.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-8 w-8">
+                                  <AvatarFallback>
+                                    {student.studentName.split(' ').map(n => n[0]).join('')}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <div className="font-medium">{student.studentName}</div>
+                                  <div className="text-xs text-muted-foreground">{student.studentEmail}</div>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="font-mono">{student.rollNumber}</TableCell>
+                            <TableCell>{student.class}</TableCell>
+                            <TableCell>{student.section}</TableCell>
+                            <TableCell>{student.branch}</TableCell>
+                            <TableCell>{new Date(student.admissionDate).toLocaleDateString()}</TableCell>
+                            <TableCell className="text-right">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm">
+                                    <MoreVerticalIcon className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleViewDetails(student)}>
+                                    <EyeIcon className="h-4 w-4 mr-2" />
+                                    View Details
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleEdit(student)}>
+                                    <EditIcon className="h-4 w-4 mr-2" />
+                                    Edit
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    className="text-red-600" 
+                                    onClick={() => handleDelete(student)}
+                                  >
+                                    <TrashIcon className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Pagination Controls */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 pt-4 border-t border-border/60 w-full">
+                    <div className="text-sm text-muted-foreground font-medium">
+                      Showing <span className="font-semibold text-foreground">{startAdmittedItem}</span> to <span className="font-semibold text-foreground">{endAdmittedItem}</span> of <span className="font-semibold text-foreground">{totalAdmittedItems}</span> students
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentAdmittedPage((p) => Math.max(p - 1, 1))}
+                        disabled={currentAdmittedPage === 1 || totalAdmittedPages <= 1}
+                        className="h-9 px-4 rounded-xl border border-border/80 text-foreground font-semibold text-xs gap-1.5 transition-all duration-200"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                        <span>Prev</span>
+                      </Button>
+
+                      {totalAdmittedPages > 1 && (
+                        <div className="hidden sm:flex items-center gap-1.5 px-2">
+                          {Array.from({ length: totalAdmittedPages }, (_, i) => i + 1).map((page) => (
+                            <button
+                              key={page}
+                              onClick={() => setCurrentAdmittedPage(page)}
+                              className={`w-8 h-8 rounded-lg text-xs font-bold transition-all duration-200 ${
+                                currentAdmittedPage === page
+                                  ? 'bg-primary text-primary-foreground shadow-md shadow-primary/10'
+                                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                                }`}
+                            >
+                              {page}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentAdmittedPage((p) => Math.min(p + 1, totalAdmittedPages))}
+                        disabled={currentAdmittedPage === totalAdmittedPages || totalAdmittedPages <= 1}
+                        className="h-9 px-4 rounded-xl border border-border/80 text-foreground font-semibold text-xs gap-1.5 transition-all duration-200"
+                      >
+                        <span>Next</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

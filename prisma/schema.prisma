@@ -11,6 +11,7 @@ datasource db {
 }
 
 enum UserRole {
+  SUPER_ADMIN
   ADMIN
   TEACHER
   STUDENT
@@ -263,6 +264,7 @@ model Teacher {
   subjects         String[]
   classes          Class[]
   attendance       Attendance[]
+  reports          Report[]
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   routineSlots    RoutineSlot[]
@@ -286,6 +288,11 @@ model Student {
   fees           Fee[]
   bookBorrowings BookBorrowing[]
   transactions   Transaction[]
+  reports        Report[]
+  routeId        String?
+  route          Route?          @relation(fields: [routeId], references: [id])
+  stopName       String?
+  transportFeeStatus String?     @default("Paid")
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 }
@@ -302,14 +309,19 @@ model Parent {
 }
 
 model Staff {
-  id          String   @id @default(cuid())
-  aamarId     String
-  userId      String   @unique
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  designation String
-  department  String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String       @id @default(cuid())
+  aamarId      String
+  userId       String       @unique
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  designation  String
+  department   String
+  salary       Float?       @default(25000)
+  joiningDate  DateTime     @default(now())
+  workingHours String       @default("Full Time")
+  leaves       StaffLeave[]
+  attendance   Attendance[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 }
 
 model Attendance {
@@ -319,6 +331,8 @@ model Attendance {
   student   Student?         @relation(fields: [studentId], references: [id])
   teacherId String?
   teacher   Teacher?         @relation(fields: [teacherId], references: [id])
+  staffId   String?
+  staff     Staff?           @relation(fields: [staffId], references: [id])
   date      DateTime
   status    AttendanceStatus
   remarks   String?
@@ -326,6 +340,21 @@ model Attendance {
   updatedAt DateTime         @updatedAt
 
   @@unique([studentId, date])
+}
+
+model StaffLeave {
+  id          String   @id @default(cuid())
+  aamarId     String
+  staffId     String
+  staff       Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  leaveType   String
+  startDate   DateTime
+  endDate     DateTime
+  reason      String?
+  status      String   @default("Pending")
+  appliedDate DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Exam {
@@ -442,28 +471,38 @@ model BookBorrowing {
 }
 
 model Vehicle {
-  id        String   @id @default(cuid())
-  aamarId   String
-  number    String
-  type      String
-  capacity  Int
-  schoolId  String
-  school    School   @relation(fields: [schoolId], references: [id])
-  routes    Route[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String   @id @default(cuid())
+  aamarId          String
+  number           String
+  type             String
+  capacity         Int
+  driverName       String?
+  driverPhone      String?
+  driverLicense    String?
+  driverExperience String?
+  status           String   @default("Active")
+  schoolId         String
+  school           School   @relation(fields: [schoolId], references: [id])
+  routes           Route[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model Route {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   aamarId    String
   name       String
   startPoint String
   endPoint   String
+  distance   String?   @default("25 km")
+  startTime  String?   @default("07:00 AM")
+  endTime    String?   @default("08:30 AM")
+  status     String    @default("Active")
   vehicleId  String
-  vehicle    Vehicle  @relation(fields: [vehicleId], references: [id])
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  vehicle    Vehicle   @relation(fields: [vehicleId], references: [id])
+  students   Student[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 }
 
 model Announcement {
@@ -621,4 +660,18 @@ model CalendarEvent {
   school      School            @relation(fields: [schoolId], references: [id])
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  aamarId     String
+  title       String
+  description String
+  category    String   @default("General") // Academic, Attendance, Behavior, General
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  teacherId   String
+  teacher     Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
