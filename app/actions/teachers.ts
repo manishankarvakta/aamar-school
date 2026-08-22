@@ -296,11 +296,14 @@ export async function getTeachers(page: number = 1, limit: number = 10, branchId
 }
 
 // Get all teachers for aamarId, no pagination, minimal info for selects
-export async function getAllTeachers() {
+export async function getAllTeachers(branchId?: string) {
   try {
     const session = await requireAuth();
     const teachers = await prisma.teacher.findMany({
-      where: { aamarId: session.aamarId },
+      where: {
+        aamarId: session.aamarId,
+        ...(branchId && branchId !== 'all' ? { user: { branchId } } : {}),
+      },
       include: {
         user: true
       },

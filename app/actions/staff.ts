@@ -81,6 +81,7 @@ export async function getStaffData() {
             status: isOnLeave ? 'On Leave' : st.user.isActive ? 'Active' : 'Inactive',
             workingHours: st.workingHours,
             photo: st.user.profile?.avatar || '',
+            branchId: st.user.branchId || null,
           };
         }),
         attendance: todayAttendance.map((a) => ({
@@ -93,6 +94,7 @@ export async function getStaffData() {
           hoursWorked: 9, // dummy fallback
           status: a.status === AttendanceStatus.PRESENT ? 'Present' : 'Absent',
           date: a.date.toISOString().split('T')[0],
+          branchId: a.staff?.user.branchId || null,
         })),
         leaves: leaves.map((l) => ({
           id: l.id,
@@ -105,12 +107,76 @@ export async function getStaffData() {
           reason: l.reason || 'Personal reasons',
           status: l.status,
           appliedDate: l.appliedDate.toISOString().split('T')[0],
+          branchId: l.staff.user.branchId || null,
         })),
       },
     };
   } catch (error) {
     console.error('Error fetching staff records:', error);
     return { success: false, error: 'Failed to fetch staff records.' };
+  }
+}
+
+import bcrypt from 'bcryptjs';
+
+export async function getStaffPermissions(staffId: string) {
+  try {
+    const session = await requireAuth();
+    if (session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN') {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    const staff = await prisma.staff.findUnique({
+      where: { id: staffId },
+      select: {
+        id: true,
+        permissions: true,
+        allowedBranches: true,
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!staff) {
+      return { success: false, error: 'Staff member not found' };
+    }
+
+    return { success: true, data: staff };
+  } catch (error) {
+    console.error('Error fetching staff permissions:', error);
+    return { success: false, error: 'Failed to fetch staff permissions' };
+  }
+}
+
+export async function updateStaffPermissions(
+  staffId: string,
+  permissions: any,
+  allowedBranches: string[]
+) {
+  try {
+    const session = await requireAuth();
+    if (session.role !== 'SUPER_ADMIN' && session.role !== 'ADMIN') {
+      return { success: false, error: 'Unauthorized' };
+    }
+
+    await prisma.staff.update({
+      where: { id: staffId },
+      data: {
+        permissions,
+        allowedBranches,
+      },
+    });
+
+    revalidatePath('/dashboard/staff');
+    return { success: true, message: 'Permissions updated successfully' };
+  } catch (error) {
+    console.error('Error updating staff permissions:', error);
+    return { success: false, error: 'Failed to update staff permissions' };
   }
 }
 
@@ -123,12 +189,26 @@ export async function addStaff(data: {
   department: string;
   salary: number;
   workingHours: string;
+  branchId?: string;
 }) {
   try {
     const session = await requireAuth();
 
+    // Check if email already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email: data.email },
+    });
+
+    if (existingUser) {
+      return {
+        success: false,
+        error: 'Email already exists.',
+      };
+    }
+
     // 1. Create unique password & User
-    const defaultPassword = '$2b$10$dummyhashedpasswordtoavoidempty'; // placeholder fallback
+    const staffPassword = `STF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const hashedStaffPassword = await bcrypt.hash(staffPassword, 10);
 
     const newUser = await prisma.user.create({
       data: {
@@ -137,8 +217,9 @@ export async function addStaff(data: {
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email,
-        password: defaultPassword,
+        password: hashedStaffPassword,
         role: UserRole.STAFF,
+        branchId: data.branchId || null,
         profile: {
           create: {
             aamarId: session.aamarId,
@@ -152,16 +233,25 @@ export async function addStaff(data: {
             department: data.department,
             salary: data.salary,
             workingHours: data.workingHours,
+            allowedBranches: data.branchId ? [data.branchId] : [],
+            permissions: {}, // starts empty
           },
         },
       },
     });
 
     revalidatePath('/dashboard/staff');
-    return { success: true, data: newUser };
+    return { 
+      success: true, 
+      data: {
+        id: newUser.id,
+        email: newUser.email,
+        password: staffPassword,
+      } 
+    };
   } catch (error) {
     console.error('Error adding staff member:', error);
-    return { success: false, error: 'Failed to add staff member. Check duplicate email.' };
+    return { success: false, error: 'Failed to add staff member.' };
   }
 }
 

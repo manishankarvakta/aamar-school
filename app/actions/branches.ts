@@ -23,8 +23,23 @@ export async function getBranchesWithStats() {
   try {
     const session = await requireAuth();
 
+    // Enforce branch permissions for staff
+    let allowedBranchIds: string[] | null = null;
+    if (session.role === 'STAFF') {
+      const staff = await prisma.staff.findUnique({
+        where: { userId: session.userId },
+        select: { allowedBranches: true }
+      });
+      if (staff) {
+        allowedBranchIds = staff.allowedBranches;
+      }
+    }
+
     const branches = await prisma.branch.findMany({
-      where: { aamarId: session.aamarId },
+      where: { 
+        aamarId: session.aamarId,
+        ...(allowedBranchIds ? { id: { in: allowedBranchIds } } : {})
+      },
       include: {
         classes: {
           include: {
@@ -94,12 +109,7 @@ export async function addBranch(formData: {
       return { success: false, error: "Name and code are required" };
     }
 
-    // Get schoolId from session user
-    const user = await prisma.user.findUnique({
-      where: { id: session.userId },
-      select: { schoolId: true },
-    });
-    if (!user?.schoolId) {
+    if (!session.schoolId) {
       return { success: false, error: "School not found" };
     }
 
@@ -111,7 +121,7 @@ export async function addBranch(formData: {
         address: formData.address.trim(),
         phone: formData.phone.trim(),
         email: formData.email.trim(),
-        schoolId: user.schoolId,
+        schoolId: session.schoolId,
       },
     });
 

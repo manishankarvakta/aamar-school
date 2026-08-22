@@ -43,18 +43,24 @@ const mapUiToDbStatus = (status: string): AttendanceStatus => {
 };
 
 // Fetch dynamic filter options (classes, sections)
-export async function getAttendanceFilters() {
+export async function getAttendanceFilters(branchId?: string) {
   try {
     const session = await requireAuth();
 
     const classes = await prisma.class.findMany({
-      where: { aamarId: session.aamarId },
+      where: {
+        aamarId: session.aamarId,
+        ...(branchId && branchId !== 'all' ? { branchId } : {}),
+      },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     });
 
     const sections = await prisma.section.findMany({
-      where: { aamarId: session.aamarId },
+      where: {
+        aamarId: session.aamarId,
+        ...(branchId && branchId !== 'all' ? { class: { branchId } } : {}),
+      },
       select: { id: true, name: true },
       orderBy: { name: 'asc' },
     });
@@ -157,14 +163,17 @@ export async function getAttendanceStats(dateStr: string, branchId?: string) {
 }
 
 // Fetch student list with attendance status
-export async function getStudentsAttendanceList(dateStr: string) {
+export async function getStudentsAttendanceList(dateStr: string, branchId?: string) {
   try {
     const session = await requireAuth();
     const { start, end } = getDayRange(dateStr);
 
     // Fetch all students for the school
     const students = await prisma.student.findMany({
-      where: { aamarId: session.aamarId },
+      where: {
+        aamarId: session.aamarId,
+        ...(branchId && branchId !== 'all' ? { user: { branchId } } : {}),
+      },
       include: {
         user: {
           include: {
@@ -179,11 +188,14 @@ export async function getStudentsAttendanceList(dateStr: string) {
       },
     });
 
+    const studentWhereFilter = branchId && branchId !== 'all' ? { student: { user: { branchId } } } : {};
+
     // Fetch attendance for these students on today's date
     const todayAttendance = await prisma.attendance.findMany({
       where: {
         aamarId: session.aamarId,
         studentId: { not: null },
+        ...studentWhereFilter,
         date: {
           gte: start,
           lte: end,
@@ -197,6 +209,7 @@ export async function getStudentsAttendanceList(dateStr: string) {
       where: {
         aamarId: session.aamarId,
         studentId: { not: null },
+        ...studentWhereFilter,
         date: {
           gte: startOfMonth,
           lte: end,
@@ -210,6 +223,7 @@ export async function getStudentsAttendanceList(dateStr: string) {
       where: {
         aamarId: session.aamarId,
         studentId: { not: null },
+        ...studentWhereFilter,
         date: {
           gte: startOfWeek,
           lte: end,
@@ -289,13 +303,16 @@ export async function getStudentsAttendanceList(dateStr: string) {
 }
 
 // Fetch staff (teacher) list with attendance status
-export async function getStaffAttendanceList(dateStr: string) {
+export async function getStaffAttendanceList(dateStr: string, branchId?: string) {
   try {
     const session = await requireAuth();
     const { start, end } = getDayRange(dateStr);
 
     const teachers = await prisma.teacher.findMany({
-      where: { aamarId: session.aamarId },
+      where: {
+        aamarId: session.aamarId,
+        ...(branchId && branchId !== 'all' ? { user: { branchId } } : {}),
+      },
       include: {
         user: {
           include: {
@@ -310,10 +327,13 @@ export async function getStaffAttendanceList(dateStr: string) {
       },
     });
 
+    const teacherWhereFilter = branchId && branchId !== 'all' ? { teacher: { user: { branchId } } } : {};
+
     const todayAttendance = await prisma.attendance.findMany({
       where: {
         aamarId: session.aamarId,
         teacherId: { not: null },
+        ...teacherWhereFilter,
         date: {
           gte: start,
           lte: end,
@@ -326,6 +346,7 @@ export async function getStaffAttendanceList(dateStr: string) {
       where: {
         aamarId: session.aamarId,
         teacherId: { not: null },
+        ...teacherWhereFilter,
         date: {
           gte: startOfMonth,
           lte: end,

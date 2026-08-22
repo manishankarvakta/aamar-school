@@ -35,6 +35,7 @@ export async function getLibraryData() {
             class: {
               select: {
                 name: true,
+                branchId: true,
               },
             },
           },
@@ -56,6 +57,7 @@ export async function getLibraryData() {
         class: {
           select: {
             name: true,
+            branchId: true,
           },
         },
       },
@@ -72,6 +74,7 @@ export async function getLibraryData() {
           author: b.author,
           quantity: b.quantity,
           available: b.available,
+          branchId: b.branchId || null,
         })),
         borrowings: borrowings.map((br) => ({
           id: br.id,
@@ -85,12 +88,14 @@ export async function getLibraryData() {
           borrowDate: br.borrowDate.toISOString().split('T')[0],
           returnDate: br.returnDate ? br.returnDate.toISOString().split('T')[0] : null,
           dueDate: new Date(br.borrowDate.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days default due date
+          branchId: br.student.class.branchId || null,
         })),
         students: students.map((s) => ({
           id: s.id,
           name: `${s.user.firstName} ${s.user.lastName}`,
           className: s.class.name,
           rollNumber: s.rollNumber,
+          branchId: s.class.branchId || null,
         })),
       },
     };
@@ -105,6 +110,7 @@ export async function addBook(data: {
   author: string;
   isbn: string;
   quantity: number;
+  branchId?: string;
 }) {
   try {
     const session = await requireAuth();
@@ -118,6 +124,7 @@ export async function addBook(data: {
         isbn: data.isbn,
         quantity: data.quantity,
         available: data.quantity, // all copies initially available
+        branchId: data.branchId || null,
       },
     });
 

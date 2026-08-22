@@ -141,3 +141,69 @@ export async function registerSchoolAndAdmin(
     return { success: false, message: 'An internal server error occurred' };
   }
 }
+
+import { requireAuth } from '@/lib/session';
+
+export async function getCurrentUserPermissions() {
+  try {
+    const session = await requireAuth();
+    if (session.role === 'SUPER_ADMIN' || session.role === 'ADMIN') {
+      return {
+        success: true,
+        isAdmin: true,
+        role: session.role,
+        permissions: null,
+        allowedBranches: null,
+        user: {
+          id: session.userId,
+          email: session.email,
+        }
+      };
+    }
+    
+    if (session.role === 'STAFF') {
+      const staff = await prisma.staff.findUnique({
+        where: { userId: session.userId },
+        select: {
+          id: true,
+          permissions: true,
+          allowedBranches: true,
+          user: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+            }
+          }
+        }
+      });
+      return {
+        success: true,
+        isAdmin: false,
+        role: session.role,
+        permissions: (staff?.permissions as Record<string, any>) || {},
+        allowedBranches: staff?.allowedBranches || [],
+        user: {
+          id: session.userId,
+          email: session.email,
+          name: staff ? `${staff.user.firstName} ${staff.user.lastName}` : 'Staff',
+        }
+      };
+    }
+    
+    return {
+      success: true,
+      isAdmin: false,
+      role: session.role,
+      permissions: {},
+      allowedBranches: [],
+      user: {
+        id: session.userId,
+        email: session.email,
+      }
+    };
+  } catch (error) {
+    console.error('Error in getCurrentUserPermissions:', error);
+    return { success: false, error: 'Not authenticated' };
+  }
+}

@@ -56,8 +56,30 @@ const navGroups = [
   },
 ];
 
+import { useUser } from '@/contexts/user-context';
+
+const routePermissionKeys: Record<string, string> = {
+  '/dashboard/admissions': 'admissions',
+  '/dashboard/students': 'students',
+  '/dashboard/parents': 'parents',
+  '/dashboard/teachers': 'teachers',
+  '/dashboard/classes': 'classes',
+  '/dashboard/subjects': 'subjects',
+  '/dashboard/class-routine': 'class-routine',
+  '/dashboard/attendance': 'attendance',
+  '/dashboard/exams': 'exams',
+  '/dashboard/branches': 'branches',
+  '/dashboard/announcements': 'announcements',
+  '/dashboard/accounts': 'accounts',
+  '/dashboard/library': 'library',
+  '/dashboard/transport': 'transport',
+  '/dashboard/staff': 'staff',
+  '/dashboard/settings': 'settings',
+};
+
 export function Sidebar() {
   const pathname = usePathname();
+  const { hasPermission, loading } = useUser();
 
   return (
     <aside className="hidden md:flex flex-col w-64 bg-card border-r h-screen">
@@ -72,37 +94,51 @@ export function Sidebar() {
         </Link>
       </div>
 
-      
-      
       {/* Scrollable Navigation */}
       <nav className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 space-y-6 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent hover:scrollbar-thumb-gray-400">
-        {navGroups.map((group) => (
-          <div key={group.title}>
-            <h3 className="px-3 mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              {group.title}
-            </h3>
-            <div className="space-y-1">
-              {group.items.map((item) => {
-                const isActive = pathname === item.href;
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={cn(
-                      "flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-all duration-200",
-                      isActive
-                        ? "bg-primary text-primary-foreground shadow-sm font-medium"
-                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                    )}
-                  >
-                    <item.icon className="h-4 w-4 shrink-0" />
-                    <span className="truncate">{item.name}</span>
-                  </Link>
-                );
-              })}
+        {navGroups.map((group) => {
+          const visibleItems = group.items.filter((item) => {
+            if (loading) return false;
+            // Dashboard is always visible
+            if (item.href === '/dashboard') return true;
+            
+            const permKey = routePermissionKeys[item.href];
+            if (permKey) {
+              return hasPermission(permKey, 'view');
+            }
+            return true;
+          });
+
+          if (visibleItems.length === 0) return null;
+
+          return (
+            <div key={group.title}>
+              <h3 className="px-3 mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                {group.title}
+              </h3>
+              <div className="space-y-1">
+                {visibleItems.map((item) => {
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-all duration-200",
+                        isActive
+                          ? "bg-primary text-primary-foreground shadow-sm font-medium"
+                          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      )}
+                    >
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{item.name}</span>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
     </aside>
   );

@@ -98,7 +98,7 @@ export async function getTransportData() {
           studentId: s.rollNumber,
           class: s.class.name,
           routeName: s.route?.name || 'N/A',
-          routeId: s.routeId,
+          routeId: s.routeId!,
           stopName: s.stopName || 'N/A',
           pickupTime: s.route?.startTime || '07:00 AM',
           dropTime: s.route?.endTime || '02:30 PM',

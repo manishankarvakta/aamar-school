@@ -35,6 +35,8 @@ import {
   EyeIcon,
   UserCheckIcon,
   UserXIcon,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import {
   getAttendanceFilters,
@@ -45,9 +47,107 @@ import {
   markStaffAttendance,
   quickBulkMarkAttendance,
 } from '@/app/actions/attendance';
+import { useBranch } from '@/contexts/branch-context';
+
+function PaginationWithSummary({
+  currentPage,
+  totalPages,
+  itemsPerPage,
+  totalItems,
+  onPageChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  itemsPerPage: number;
+  totalItems: number;
+  onPageChange: (page: number) => void;
+}) {
+  const getPageNumbers = () => {
+    const pages: (number | "ellipsis")[] = [];
+    if (totalPages <= 1) return [];
+
+    pages.push(1);
+
+    if (currentPage > 3) {
+      pages.push("ellipsis");
+    }
+
+    const start = Math.max(2, currentPage - 1);
+    const end = Math.min(totalPages - 1, currentPage + 1);
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+
+    if (currentPage < totalPages - 2) {
+      pages.push("ellipsis");
+    }
+
+    pages.push(totalPages);
+
+    return pages;
+  };
+
+  const startItem = totalItems === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+  const endItem = Math.min(currentPage * itemsPerPage, totalItems);
+
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-gray-100 bg-white">
+      <div className="text-sm text-muted-foreground">
+        Showing {startItem}-{endItem} of {totalItems} results
+      </div>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={currentPage === 1}
+          onClick={() => onPageChange(currentPage - 1)}
+          className="gap-1"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Previous
+        </Button>
+        
+        {getPageNumbers().map((p, i) =>
+          p === "ellipsis" ? (
+            <span key={`ellipsis-${i}`} className="px-2 text-muted-foreground">...</span>
+          ) : (
+            <Button
+              key={p}
+              variant={p === currentPage ? "default" : "outline"}
+              size="sm"
+              onClick={() => onPageChange(p)}
+              className="w-9 h-9 p-0"
+            >
+              {p}
+            </Button>
+          )
+        )}
+
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={currentPage === totalPages}
+          onClick={() => onPageChange(currentPage + 1)}
+          className="gap-1"
+        >
+          Next
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export default function AttendancePage() {
+  const { selectedBranchId } = useBranch();
   const [selectedTab, setSelectedTab] = useState('students');
+  const [studentsPage, setStudentsPage] = useState(1);
+  const [staffPage, setStaffPage] = useState(1);
+  const itemsPerPage = 10;
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClass, setSelectedClass] = useState('All Classes');
   const [selectedSection, setSelectedSection] = useState('All Sections');
@@ -76,26 +176,35 @@ export default function AttendancePage() {
 
   const { toast } = useToast();
 
-  // Load classes/sections filters once
+  // Reset pages when filters change
+  useEffect(() => {
+    setStudentsPage(1);
+  }, [searchTerm, selectedClass, selectedSection, selectedStatus, selectedDate, selectedBranchId]);
+
+  useEffect(() => {
+    setStaffPage(1);
+  }, [searchTerm, selectedStatus, selectedDate, selectedBranchId]);
+
+  // Load classes/sections filters when branch changes
   useEffect(() => {
     async function loadFilters() {
-      const res = await getAttendanceFilters();
+      const res = await getAttendanceFilters(selectedBranchId);
       if (res.success) {
         if (res.classes) setClassesList(res.classes);
         if (res.sections) setSectionsList(res.sections);
       }
     }
     loadFilters();
-  }, []);
+  }, [selectedBranchId]);
 
-  // Load stats, students, and staff data when date changes
+  // Load stats, students, and staff data when date or branch changes
   const loadData = async () => {
     setLoading(true);
     try {
       const [statsRes, studentsRes, staffRes] = await Promise.all([
-        getAttendanceStats(selectedDate),
-        getStudentsAttendanceList(selectedDate),
-        getStaffAttendanceList(selectedDate),
+        getAttendanceStats(selectedDate, selectedBranchId),
+        getStudentsAttendanceList(selectedDate, selectedBranchId),
+        getStaffAttendanceList(selectedDate, selectedBranchId),
       ]);
 
       if (statsRes.success && statsRes.stats) {
@@ -121,7 +230,7 @@ export default function AttendancePage() {
 
   useEffect(() => {
     loadData();
-  }, [selectedDate]);
+  }, [selectedDate, selectedBranchId]);
 
   // Statistics display cards mapping
   const stats = [
@@ -413,7 +522,7 @@ export default function AttendancePage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredStudents.map((student) => {
+                    filteredStudents.slice((studentsPage - 1) * itemsPerPage, studentsPage * itemsPerPage).map((student) => {
                       const StatusIcon = getStatusIcon(student.today);
                       return (
                         <TableRow key={student.id}>
@@ -499,6 +608,13 @@ export default function AttendancePage() {
                   )}
                 </TableBody>
               </Table>
+              <PaginationWithSummary
+                currentPage={studentsPage}
+                totalPages={Math.ceil(filteredStudents.length / itemsPerPage)}
+                itemsPerPage={itemsPerPage}
+                totalItems={filteredStudents.length}
+                onPageChange={setStudentsPage}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -525,7 +641,7 @@ export default function AttendancePage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filteredStaff.map((member) => {
+                    filteredStaff.slice((staffPage - 1) * itemsPerPage, staffPage * itemsPerPage).map((member) => {
                       const StatusIcon = getStatusIcon(member.today);
                       return (
                         <TableRow key={member.id}>
@@ -601,6 +717,13 @@ export default function AttendancePage() {
                   )}
                 </TableBody>
               </Table>
+              <PaginationWithSummary
+                currentPage={staffPage}
+                totalPages={Math.ceil(filteredStaff.length / itemsPerPage)}
+                itemsPerPage={itemsPerPage}
+                totalItems={filteredStaff.length}
+                onPageChange={setStaffPage}
+              />
             </CardContent>
           </Card>
         </TabsContent>

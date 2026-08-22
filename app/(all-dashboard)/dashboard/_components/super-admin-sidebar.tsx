@@ -16,6 +16,9 @@ const navGroups = [
     title: 'System Control',
     items: [
       { name: 'Control Center', href: '/dashboard/super-admin', icon: ShieldAlert },
+      { name: 'Schools', href: '/dashboard/super-admin/schools', icon: Building2 },
+      { name: 'All Students', href: '/dashboard/super-admin/students', icon: Users },
+      { name: 'All Teachers', href: '/dashboard/super-admin/teachers', icon: Users },
     ],
   },
   {

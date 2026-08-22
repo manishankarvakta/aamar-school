@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,9 @@ import {
   CheckCircleIcon,
 } from 'lucide-react';
 import { addBook, deleteBook, issueBook, returnBook } from '@/app/actions/library';
+import { useBranch } from '@/contexts/branch-context';
+import { useUser } from '@/contexts/user-context';
+import { cn } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
 
 interface Book {
@@ -71,8 +74,25 @@ export function LibraryClient({ initialData }: LibraryClientProps) {
   const [borrowings, setBorrowings] = useState<Borrowing[]>(initialData.borrowings);
   const [students] = useState<Student[]>(initialData.students);
 
+  const { hasPermission, isAdmin, loading } = useUser();
+
+  const showCatalog = isAdmin || hasPermission('library', 'view');
+  const showBorrowings = isAdmin || hasPermission('library', 'create');
+  const showReports = isAdmin || hasPermission('library', 'view');
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTab, setSelectedTab] = useState('books');
+
+  useEffect(() => {
+    if (!loading) {
+      if (isAdmin || hasPermission('library', 'view')) {
+        setSelectedTab('books');
+      } else if (hasPermission('library', 'create')) {
+        setSelectedTab('borrowed');
+      }
+    }
+  }, [loading, isAdmin, hasPermission]);
+
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
@@ -319,6 +339,12 @@ export function LibraryClient({ initialData }: LibraryClientProps) {
     });
   };
 
+  const visibleTabsCount = (showCatalog ? 1 : 0) + (showBorrowings ? 1 : 0) + (showReports ? 1 : 0);
+  const gridColsClass = 
+    visibleTabsCount === 3 ? "grid-cols-3" : 
+    visibleTabsCount === 2 ? "grid-cols-2" : 
+    "grid-cols-1";
+
   return (
     <div className="space-y-6 pb-[150px] p-4 max-w-7xl mx-auto">
       {/* Header */}
@@ -332,14 +358,18 @@ export function LibraryClient({ initialData }: LibraryClientProps) {
           </p>
         </div>
         <div className="flex gap-2.5">
-          <Button onClick={() => setShowAddBookDialog(true)} className="gap-2 shadow-sm font-semibold">
-            <PlusIcon className="h-4.5 w-4.5" />
-            Add Book
-          </Button>
-          <Button onClick={() => setShowIssueDialog(true)} variant="outline" className="gap-2 shadow-sm font-semibold">
-            <BookOpenIcon className="h-4.5 w-4.5 text-primary" />
-            Issue Book
-          </Button>
+          {(isAdmin || hasPermission('library', 'edit')) && (
+            <Button onClick={() => setShowAddBookDialog(true)} className="gap-2 shadow-sm font-semibold">
+              <PlusIcon className="h-4.5 w-4.5" />
+              Add Book
+            </Button>
+          )}
+          {(isAdmin || hasPermission('library', 'create')) && (
+            <Button onClick={() => setShowIssueDialog(true)} variant="outline" className="gap-2 shadow-sm font-semibold">
+              <BookOpenIcon className="h-4.5 w-4.5 text-primary" />
+              Issue Book
+            </Button>
+          )}
         </div>
       </div>
 
@@ -377,14 +407,17 @@ export function LibraryClient({ initialData }: LibraryClientProps) {
 
       {/* Main Content Sections */}
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid w-full grid-cols-3 max-w-md">
-          <TabsTrigger value="books">Catalog</TabsTrigger>
-          <TabsTrigger value="borrowed">Borrowings</TabsTrigger>
-          <TabsTrigger value="reports">Overview Reports</TabsTrigger>
-        </TabsList>
+        {visibleTabsCount > 0 && (
+          <TabsList className={cn("grid w-full max-w-md", gridColsClass)}>
+            {showCatalog && <TabsTrigger value="books">Catalog</TabsTrigger>}
+            {showBorrowings && <TabsTrigger value="borrowed">Borrowings</TabsTrigger>}
+            {showReports && <TabsTrigger value="reports">Overview Reports</TabsTrigger>}
+          </TabsList>
+        )}
 
         {/* Tab 1: Books Catalog */}
-        <TabsContent value="books" className="space-y-4 pt-2">
+        {showCatalog && (
+          <TabsContent value="books" className="space-y-4 pt-2">
           <Card className="shadow-md border border-slate-100">
             <CardContent className="p-0">
               <Table>
@@ -420,32 +453,38 @@ export function LibraryClient({ initialData }: LibraryClientProps) {
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                <MoreVerticalIcon className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setIssueBookId(book.id);
-                                  setShowIssueDialog(true);
-                                }}
-                                disabled={book.available <= 0}
-                              >
-                                <BookOpenIcon className="h-4 w-4 mr-2 text-slate-500" />
-                                Issue Book
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-red-600 focus:text-red-700"
-                                onClick={() => handleDeleteBook(book.id, book.title)}
-                              >
-                                <TrashIcon className="h-4 w-4 mr-2" />
-                                Delete Book
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          {(isAdmin || hasPermission('library', 'create') || hasPermission('library', 'edit')) && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <MoreVerticalIcon className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {(isAdmin || hasPermission('library', 'create')) && (
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setIssueBookId(book.id);
+                                      setShowIssueDialog(true);
+                                    }}
+                                    disabled={book.available <= 0}
+                                  >
+                                    <BookOpenIcon className="h-4 w-4 mr-2 text-slate-500" />
+                                    Issue Book
+                                  </DropdownMenuItem>
+                                )}
+                                {(isAdmin || hasPermission('library', 'edit')) && (
+                                  <DropdownMenuItem
+                                    className="text-red-600 focus:text-red-700"
+                                    onClick={() => handleDeleteBook(book.id, book.title)}
+                                  >
+                                    <TrashIcon className="h-4 w-4 mr-2" />
+                                    Delete Book
+                                  </DropdownMenuItem>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))
@@ -455,9 +494,11 @@ export function LibraryClient({ initialData }: LibraryClientProps) {
             </CardContent>
           </Card>
         </TabsContent>
+        )}
 
         {/* Tab 2: Borrowings */}
-        <TabsContent value="borrowed" className="space-y-4 pt-2">
+        {showBorrowings && (
+          <TabsContent value="borrowed" className="space-y-4 pt-2">
           <Card className="shadow-md border border-slate-100">
             <CardContent className="p-0">
               <Table>
@@ -513,7 +554,7 @@ export function LibraryClient({ initialData }: LibraryClientProps) {
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            {status !== 'Returned' && (
+                            {status !== 'Returned' && (isAdmin || hasPermission('library', 'create')) && (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
@@ -538,9 +579,11 @@ export function LibraryClient({ initialData }: LibraryClientProps) {
             </CardContent>
           </Card>
         </TabsContent>
+        )}
 
         {/* Tab 3: Simple reports */}
-        <TabsContent value="reports" className="space-y-4 pt-2">
+        {showReports && (
+          <TabsContent value="reports" className="space-y-4 pt-2">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <Card className="shadow border border-slate-100">
               <CardHeader>
@@ -597,6 +640,7 @@ export function LibraryClient({ initialData }: LibraryClientProps) {
             </Card>
           </div>
         </TabsContent>
+        )}
       </Tabs>
 
       {/* Add Book Dialog */}

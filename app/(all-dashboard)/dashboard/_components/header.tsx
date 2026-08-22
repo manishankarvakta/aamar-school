@@ -41,7 +41,7 @@ export function Header({ user }: { user: DecodedToken }) {
     <header className="h-16 flex items-center justify-between px-6 bg-card border-b">
       {/* Branch Selector */}
       <div className="py-3">
-        {user.role === 'ADMIN' && <BranchSelector compact />}
+        {(user.role === 'ADMIN' || !!Cookies.get('impersonated_school_id')) && <BranchSelector compact />}
       </div>
       <div className="flex items-center space-x-4">
         {/* Dark Mode Toggle */}

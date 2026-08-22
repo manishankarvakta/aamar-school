@@ -13,6 +13,7 @@ import { getAnnouncements, getTeacherAnnouncements } from "@/app/actions/announc
 import { DashboardClient } from "./_components/dashboard/dashboard-client";
 import { requireAuth } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { cookies } from "next/headers";
 
 export default async function DashboardPage() {
   const todayStr = new Date().toISOString().split("T")[0];
@@ -25,10 +26,18 @@ export default async function DashboardPage() {
     select: { id: true }
   });
 
-  const branchIds = ['all', ...branches.map((b) => b.id)];
+  // Get selected branch from cookies to avoid preloading all branches
+  const cookieStore = await cookies();
+  const selectedBranchId = cookieStore.get('selectedBranchId')?.value || 'all';
 
-  // Fetch all dashboard data for all branches in parallel
-  const preloadedDataPromises = branchIds.map(async (branchId) => {
+  // We only preload the selected branch and 'all'
+  const branchIdsToFetch = ['all'];
+  if (selectedBranchId !== 'all' && branches.some((b) => b.id === selectedBranchId)) {
+    branchIdsToFetch.push(selectedBranchId);
+  }
+
+  // Fetch dashboard data only for the needed branches in parallel
+  const preloadedDataPromises = branchIdsToFetch.map(async (branchId) => {
     const branchIdParam = branchId === 'all' ? undefined : branchId;
 
     const [

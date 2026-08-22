@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireAuth } from "@/lib/session";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 
 // Verify that the user is an admin
 async function requireAdminAuth() {
@@ -48,6 +49,33 @@ export async function getSuperAdminStats() {
       prisma.parent.count(),
     ]);
 
+    // Fetch top 5 schools based on student population for the chart data
+    const schoolsWithStats = await prisma.school.findMany({
+      select: {
+        name: true,
+        users: {
+          select: {
+            role: true,
+          }
+        }
+      }
+    });
+
+    const schoolChartData = schoolsWithStats.map(school => {
+      const students = school.users.filter(u => u.role === 'STUDENT').length;
+      const teachers = school.users.filter(u => u.role === 'TEACHER').length;
+      return {
+        name: school.name,
+        students,
+        teachers,
+      };
+    });
+
+    // Sort by student count descending and take top 5
+    const topSchools = schoolChartData
+      .sort((a, b) => b.students - a.students)
+      .slice(0, 5);
+
     return {
       success: true,
       data: {
@@ -58,6 +86,7 @@ export async function getSuperAdminStats() {
         teacherGender: { male: maleTeachers, female: femaleTeachers },
         totalStaff,
         totalParents,
+        topSchools,
       },
     };
   } catch (error) {
@@ -286,5 +315,121 @@ export async function deleteSchoolUser(userId: string) {
   } catch (error) {
     console.error("Error deleting school user:", error);
     return { success: false, error: "Failed to delete user" };
+  }
+}
+
+export async function startImpersonation(schoolId: string) {
+  try {
+    await requireAdminAuth();
+
+    const cookieStore = await cookies();
+    cookieStore.set('impersonated_school_id', schoolId, {
+      path: '/',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60 * 24, // 1 day
+    });
+
+    // Clear branch selection to avoid mismatch
+    cookieStore.delete('selectedBranchId');
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error starting impersonation:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Failed to start impersonation" };
+  }
+}
+
+export async function stopImpersonation() {
+  try {
+    const cookieStore = await cookies();
+    cookieStore.delete('impersonated_school_id');
+    cookieStore.delete('selectedBranchId');
+    return { success: true };
+  } catch (error) {
+    console.error("Error stopping impersonation:", error);
+    return { success: false, error: "Failed to stop impersonation" };
+  }
+}
+
+export async function getAllStudentsAcrossSchools() {
+  try {
+    await requireAdminAuth();
+
+    const students = await prisma.student.findMany({
+      include: {
+        user: {
+          include: {
+            school: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              }
+            },
+            profile: {
+              select: {
+                gender: true,
+                phone: true,
+              }
+            }
+          }
+        },
+        class: {
+          select: {
+            name: true,
+          }
+        },
+        section: {
+          select: {
+            name: true,
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    return { success: true, data: students };
+  } catch (error) {
+    console.error("Error fetching all students across schools:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Failed to fetch student directory" };
+  }
+}
+
+export async function getAllTeachersAcrossSchools() {
+  try {
+    await requireAdminAuth();
+
+    const teachers = await prisma.teacher.findMany({
+      include: {
+        user: {
+          include: {
+            school: {
+              select: {
+                id: true,
+                name: true,
+                code: true,
+              }
+            },
+            profile: {
+              select: {
+                gender: true,
+                phone: true,
+              }
+            }
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'desc'
+      }
+    });
+
+    return { success: true, data: teachers };
+  } catch (error) {
+    console.error("Error fetching all teachers across schools:", error);
+    return { success: false, error: error instanceof Error ? error.message : "Failed to fetch teacher directory" };
   }
 }

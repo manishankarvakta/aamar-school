@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/session';
 import { ClassType, AudienceType } from '@prisma/client';
+import { revalidatePath } from 'next/cache';
 
 interface RoutineSlotInput {
   id?: string;
@@ -73,6 +74,10 @@ export async function deleteClassRoutine(id: string): Promise<ClassRoutineResult
       };
     }
     await prisma.classRoutine.delete({ where: { id } });
+    revalidatePath('/dashboard/class-routine');
+    revalidatePath('/dashboard/student-dashboard/routine');
+    revalidatePath('/dashboard/teacher-dashboard/routine');
+    revalidatePath('/dashboard/parent-dashboard/routine');
     return {
       success: true,
       message: 'ClassRoutine deleted successfully',
@@ -179,6 +184,10 @@ export async function upsertClassRoutine({
         console.error('Failed to create automatic announcement:', annError);
       }
 
+      revalidatePath('/dashboard/class-routine');
+      revalidatePath('/dashboard/student-dashboard/routine');
+      revalidatePath('/dashboard/teacher-dashboard/routine');
+      revalidatePath('/dashboard/parent-dashboard/routine');
       return {
         success: true,
         data: updated,
@@ -230,6 +239,10 @@ export async function upsertClassRoutine({
         console.error('Failed to create automatic announcement:', annError);
       }
 
+      revalidatePath('/dashboard/class-routine');
+      revalidatePath('/dashboard/student-dashboard/routine');
+      revalidatePath('/dashboard/teacher-dashboard/routine');
+      revalidatePath('/dashboard/parent-dashboard/routine');
       return {
         success: true,
         data: created,
@@ -246,4 +259,80 @@ export async function upsertClassRoutine({
   }
 }
 
-// Optionally: Add a getClassRoutinesByClass or byAcademicYear, etc. following the same pattern. 
+// Fetch all teachers along with their routine slots and the classes they teach
+export async function getTeachersWithRoutines(branchId?: string): Promise<ClassRoutineResult> {
+  try {
+    const session = await requireAuth();
+    
+    const teachers = await prisma.teacher.findMany({
+      where: {
+        aamarId: session.aamarId,
+        ...(branchId && branchId !== 'all' ? { user: { branchId } } : {}),
+      },
+      include: {
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+        routineSlots: {
+          where: { aamarId: session.aamarId },
+          include: {
+            classRoutine: {
+              include: {
+                class: true,
+              },
+            },
+            subject: true,
+          },
+        },
+      },
+      orderBy: {
+        user: {
+          firstName: 'asc',
+        },
+      },
+    });
+
+    const data = teachers.map((teacher) => {
+      // Find all unique classes this teacher has slots in
+      const classesTaughtMap = new Map<string, string>();
+      teacher.routineSlots.forEach((slot) => {
+        const cls = slot.classRoutine?.class;
+        if (cls) {
+          classesTaughtMap.set(cls.id, cls.name);
+        }
+      });
+      const classesTaught = Array.from(classesTaughtMap.values());
+
+      return {
+        id: teacher.id,
+        name: `${teacher.user.firstName} ${teacher.user.lastName}`,
+        classesTaught,
+        schedule: teacher.routineSlots.map((slot) => ({
+          id: slot.id,
+          day: slot.day,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          classType: slot.classType,
+          className: slot.classRoutine?.class?.name || 'N/A',
+          subjectName: slot.subject?.name || 'N/A',
+        })),
+      };
+    });
+
+    return {
+      success: true,
+      message: 'Teachers with schedules retrieved successfully',
+      data,
+    };
+  } catch (error) {
+    console.error('Error fetching teachers with schedules:', error);
+    return {
+      success: false,
+      error: 'Failed to fetch teachers with schedules',
+      message: 'An error occurred while fetching teachers and schedules',
+    };
+  }
+}

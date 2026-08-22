@@ -3,6 +3,7 @@ import { StaffClient } from '@/app/(all-dashboard)/dashboard/staff/_components/s
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/jwt';
+import { PermissionGuard } from '@/components/permission-guard';
 
 export default async function StaffPage() {
   const cookieStore = await cookies();
@@ -14,7 +15,7 @@ export default async function StaffPage() {
 
   try {
     const user = await verifyToken(token);
-    if (user.role !== 'SUPER_ADMIN' && user.role !== 'ADMIN' && user.role !== 'TEACHER') {
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'ADMIN' && user.role !== 'TEACHER' && user.role !== 'STAFF') {
       redirect('/login');
     }
   } catch (error) {
@@ -36,5 +37,9 @@ export default async function StaffPage() {
     );
   }
 
-  return <StaffClient initialData={result.data} />;
+  return (
+    <PermissionGuard permission="staff">
+      <StaffClient initialData={result.data} />
+    </PermissionGuard>
+  );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useRouter } from 'next/navigation';
 import {
   PlusIcon,
   SearchIcon,
@@ -24,9 +25,14 @@ import {
   CalendarIcon,
   CheckCircleIcon,
   AlertCircleIcon,
+  ShieldIcon,
+  CopyIcon,
+  CheckIcon,
+  KeyIcon,
 } from 'lucide-react';
 import { addStaff, deleteStaff, submitLeaveRequest, updateLeaveStatus } from '@/app/actions/staff';
 import { useToast } from '@/components/ui/use-toast';
+import { useBranch } from '@/contexts/branch-context';
 
 interface StaffItem {
   id: string;
@@ -41,6 +47,7 @@ interface StaffItem {
   status: string;
   workingHours: string;
   photo: string;
+  branchId?: string | null;
 }
 
 interface AttendanceItem {
@@ -53,6 +60,7 @@ interface AttendanceItem {
   hoursWorked: number;
   status: string;
   date: string;
+  branchId?: string | null;
 }
 
 interface LeaveItem {
@@ -66,6 +74,7 @@ interface LeaveItem {
   reason: string;
   status: string;
   appliedDate: string;
+  branchId?: string | null;
 }
 
 interface StaffClientProps {
@@ -77,6 +86,7 @@ interface StaffClientProps {
 }
 
 export function StaffClient({ initialData }: StaffClientProps) {
+  const router = useRouter();
   const [staffList, setStaffList] = useState<StaffItem[]>(initialData.staff);
   const [attendanceList, setAttendanceList] = useState<AttendanceItem[]>(initialData.attendance);
   const [leavesList, setLeavesList] = useState<LeaveItem[]>(initialData.leaves);
@@ -88,9 +98,15 @@ export function StaffClient({ initialData }: StaffClientProps) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
+  const { branches, selectedBranchId } = useBranch();
+
   // Dialog visibility states
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  
+  // Auto-generated credentials display state
+  const [createdCredentials, setCreatedCredentials] = useState<{ email: string; password: string } | null>(null);
+  const [copiedCreds, setCopiedCreds] = useState(false);
 
   // Add Staff form states
   const [firstName, setFirstName] = useState('');
@@ -101,6 +117,14 @@ export function StaffClient({ initialData }: StaffClientProps) {
   const [department, setDepartment] = useState('Administration');
   const [salary, setSalary] = useState('25000');
   const [workingHours, setWorkingHours] = useState('Full Time');
+  const [branchId, setBranchId] = useState('');
+
+  // Auto-populate branch select when opening add dialog
+  useEffect(() => {
+    if (showAddDialog) {
+      setBranchId(selectedBranchId !== 'all' ? selectedBranchId : (branches[0]?.id || ''));
+    }
+  }, [showAddDialog, selectedBranchId, branches]);
 
   // Submit Leave form states
   const [leaveStaffId, setLeaveStaffId] = useState('');
@@ -112,14 +136,21 @@ export function StaffClient({ initialData }: StaffClientProps) {
   const departments = ['All Departments', 'Administration', 'Maintenance', 'Library', 'Security', 'Transport', 'Canteen'];
   const statuses = ['All Status', 'Active', 'Inactive', 'On Leave'];
 
-  // Calculate statistics
-  const activeStaffCount = staffList.filter((s) => s.status === 'Active').length;
-  const leavesCount = staffList.filter((s) => s.status === 'On Leave').length;
-  const distinctDeps = new Set(staffList.map((s) => s.department)).size;
+  // Calculate statistics based on selected branch
+  const branchStaff = selectedBranchId === 'all'
+    ? staffList
+    : staffList.filter((s) => s.branchId === selectedBranchId);
+  const branchAttendance = selectedBranchId === 'all'
+    ? attendanceList
+    : attendanceList.filter((a) => a.branchId === selectedBranchId);
+
+  const activeStaffCount = branchStaff.filter((s) => s.status === 'Active').length;
+  const leavesCount = branchStaff.filter((s) => s.status === 'On Leave').length;
+  const distinctDeps = new Set(branchStaff.map((s) => s.department)).size;
 
   const stats = [
-    { title: 'Total Staff', value: staffList.length.toString(), icon: UsersIcon, color: 'blue' },
-    { title: 'Present Today', value: attendanceList.filter((a) => a.status === 'Present').length.toString(), icon: CheckCircleIcon, color: 'green' },
+    { title: 'Total Staff', value: branchStaff.length.toString(), icon: UsersIcon, color: 'blue' },
+    { title: 'Present Today', value: branchAttendance.filter((a) => a.status === 'Present').length.toString(), icon: CheckCircleIcon, color: 'green' },
     { title: 'On Leave', value: leavesCount.toString(), icon: CalendarIcon, color: 'yellow' },
     { title: 'Departments', value: distinctDeps.toString(), icon: BuildingIcon, color: 'purple' },
   ];
@@ -134,19 +165,24 @@ export function StaffClient({ initialData }: StaffClientProps) {
 
     const matchesDepartment = selectedDepartment === 'All Departments' || st.department === selectedDepartment;
     const matchesStatus = selectedStatus === 'All Status' || st.status === selectedStatus;
+    const matchesBranch = selectedBranchId === 'all' || st.branchId === selectedBranchId;
 
-    return matchesSearch && matchesDepartment && matchesStatus;
+    return matchesSearch && matchesDepartment && matchesStatus && matchesBranch;
   });
 
-  const filteredAttendance = attendanceList.filter((a) =>
-    a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    a.employeeId.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredAttendance = attendanceList.filter((a) => {
+    const matchesSearch = a.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      a.employeeId.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesBranch = selectedBranchId === 'all' || a.branchId === selectedBranchId;
+    return matchesSearch && matchesBranch;
+  });
 
-  const filteredLeaves = leavesList.filter((l) =>
-    l.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    l.employeeId.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredLeaves = leavesList.filter((l) => {
+    const matchesSearch = l.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      l.employeeId.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesBranch = selectedBranchId === 'all' || l.branchId === selectedBranchId;
+    return matchesSearch && matchesBranch;
+  });
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -195,12 +231,19 @@ export function StaffClient({ initialData }: StaffClientProps) {
         department,
         salary: parseFloat(salary) || 20000,
         workingHours,
+        branchId: branchId || undefined,
       });
 
       if (res.success && res.data) {
         toast({
           title: 'Success',
           description: `Staff member "${firstName} ${lastName}" created successfully.`,
+        });
+
+        // Set credentials display to open copy dialog
+        setCreatedCredentials({
+          email: res.data.email,
+          password: res.data.password,
         });
 
         // Push new staff locally
@@ -217,6 +260,7 @@ export function StaffClient({ initialData }: StaffClientProps) {
           status: 'Active',
           workingHours,
           photo: '',
+          branchId: branchId || null,
         };
 
         setStaffList((prev) => [newStaff, ...prev]);
@@ -506,7 +550,14 @@ export function StaffClient({ initialData }: StaffClientProps) {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem
-                                className="text-red-600 focus:text-red-755"
+                                onClick={() => router.push(`/dashboard/staff/${staff.id}/permissions`)}
+                                className="cursor-pointer"
+                              >
+                                <ShieldIcon className="h-4 w-4 mr-2 text-indigo-600" />
+                                Permissions
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-red-650 focus:text-red-755 cursor-pointer"
                                 onClick={() => handleDeleteStaff(staff.id, staff.name)}
                               >
                                 <TrashIcon className="h-4 w-4 mr-2" />
@@ -734,6 +785,22 @@ export function StaffClient({ initialData }: StaffClientProps) {
               </div>
             </div>
 
+            <div className="space-y-1.5">
+              <Label htmlFor="branch">Assigned Branch</Label>
+              <Select value={branchId} onValueChange={setBranchId}>
+                <SelectTrigger id="branch">
+                  <SelectValue placeholder="Select branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  {branches.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name} ({b.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="flex justify-end gap-2 pt-4 border-t">
               <Button
                 type="button"
@@ -838,6 +905,80 @@ export function StaffClient({ initialData }: StaffClientProps) {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog 3: Generated Credentials Display */}
+      <Dialog open={createdCredentials !== null} onOpenChange={(open) => { if (!open) setCreatedCredentials(null); }}>
+        <DialogContent className="sm:max-w-[420px] rounded-2xl border border-slate-100 bg-white shadow-2xl p-6 overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50/50 rounded-full blur-2xl -z-10" />
+          <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-emerald-50/50 rounded-full blur-2xl -z-10" />
+
+          <DialogHeader className="space-y-2">
+            <div className="w-12 h-12 rounded-xl bg-indigo-50 border border-indigo-100/50 flex items-center justify-center text-indigo-600 mb-2">
+              <KeyIcon className="w-6 h-6 animate-pulse" />
+            </div>
+            <DialogTitle className="text-xl font-bold text-slate-800">Credentials Generated</DialogTitle>
+            <DialogDescription className="text-slate-500 text-xs">
+              Below are the auto-generated login credentials for the new staff member. Please copy these credentials now.
+            </DialogDescription>
+          </DialogHeader>
+
+          {createdCredentials && (
+            <div className="space-y-4 pt-3">
+              <div className="space-y-3 bg-slate-50/80 border border-slate-100 rounded-xl p-4">
+                <div className="space-y-1">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Login Email</span>
+                  <div className="font-semibold text-slate-700 select-all font-mono text-sm break-all">{createdCredentials.email}</div>
+                </div>
+                <div className="border-t border-slate-100/80 my-1" />
+                <div className="space-y-1">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Generated Password</span>
+                  <div className="font-bold text-indigo-600 select-all font-mono text-sm tracking-wide">{createdCredentials.password}</div>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 flex gap-2.5">
+                <div className="text-amber-600 text-sm font-semibold">⚠️</div>
+                <div className="text-[11px] text-amber-800 leading-normal font-medium">
+                  <strong>Important:</strong> For security, this temporary password is shown only once. Be sure to share it securely with the staff member.
+                </div>
+              </div>
+
+              <div className="flex gap-2.5 pt-2">
+                <Button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      `Email: ${createdCredentials.email}\nPassword: ${createdCredentials.password}`
+                    );
+                    setCopiedCreds(true);
+                    setTimeout(() => setCopiedCreds(false), 2000);
+                  }}
+                  className="flex-1 rounded-xl h-11 shadow-sm gap-2 font-semibold"
+                >
+                  {copiedCreds ? (
+                    <>
+                      <CheckIcon className="w-4.5 h-4.5" />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <CopyIcon className="w-4.5 h-4.5" />
+                      Copy Credentials
+                    </>
+                  )}
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => setCreatedCredentials(null)}
+                  className="rounded-xl h-11 px-6 font-semibold"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+

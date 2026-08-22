@@ -168,7 +168,7 @@ export async function createClass(formData: ClassFormData): Promise<ClassResult>
 }
 
 // Get all classes with full details
-export async function getClasses(): Promise<ClassResult> {
+export async function getClasses(branchId?: string): Promise<ClassResult> {
   try {
     // Get session data for multi-tenancy
     const session = await requireAuth();
@@ -176,6 +176,7 @@ export async function getClasses(): Promise<ClassResult> {
     const classes = await prisma.class.findMany({
       where: {
         aamarId: session.aamarId,
+        ...(branchId && branchId !== 'all' ? { branchId } : {}),
       },
       include: {
         branch: true,

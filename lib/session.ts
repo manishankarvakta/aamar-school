@@ -44,6 +44,27 @@ export async function getSessionData(): Promise<SessionData | null> {
       return null;
     }
 
+    // Override if super admin and impersonating
+    if (user.role === 'SUPER_ADMIN') {
+      const impersonatedSchoolId = cookieStore.get('impersonated_school_id')?.value;
+      if (impersonatedSchoolId) {
+        const school = await prisma.school.findUnique({
+          where: { id: impersonatedSchoolId },
+          select: { id: true, aamarId: true }
+        });
+        if (school) {
+          return {
+            userId: user.id,
+            role: user.role,
+            aamarId: school.aamarId,
+            schoolId: school.id,
+            branchId: null,
+            email: user.email,
+          };
+        }
+      }
+    }
+
     return {
       userId: user.id,
       role: user.role,

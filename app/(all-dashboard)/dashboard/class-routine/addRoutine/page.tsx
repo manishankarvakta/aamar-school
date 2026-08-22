@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { getSettings } from "@/app/actions/settings";
+import { useBranch } from "@/contexts/branch-context";
 import { getSubjectsForClass, getClasses } from "@/app/actions/classes";
 import { getAllTeachers } from "@/app/actions/teachers";
 import { ArrowLeft, Calendar, Pencil, Trash2, Plus } from "lucide-react";
@@ -157,6 +158,7 @@ function parseSchedule(
 }
 
 export default function ClassRoutingEditPage() {
+  const { selectedBranchId } = useBranch();
   const [classValue, setClassValue] = useState("");
   const [yearValue, setYearValue] = useState("");
   const [classOptions, setClassOptions] = useState<
@@ -270,15 +272,16 @@ export default function ClassRoutingEditPage() {
     }
 
     const key = `${quickDay}|${quickStartTime}-${quickEndTime}`;
-    setAssignments((prev) => ({
-      ...prev,
+    const newAssignments = {
+      ...assignments,
       [key]: {
         subject: quickSubject,
         teacher: quickTeacher,
         classType: quickClassType,
         ...(quickClassType !== "regular" ? { endTime: quickEndTime } : {}),
       },
-    }));
+    };
+    setAssignments(newAssignments);
 
     toast({
       title: "Slot Added",
@@ -291,6 +294,9 @@ export default function ClassRoutingEditPage() {
     setQuickSubject("");
     setQuickTeacher("");
     setQuickClassType("regular");
+
+    // Auto-save to database
+    handleSaveRoutine(newAssignments);
   };
 
   console.log("subjects", subjects);
@@ -304,7 +310,7 @@ export default function ClassRoutingEditPage() {
     async function loadClassesAndSettings() {
       setLoading(true);
       // Load classes using getClassStats
-      const classRes = await getClasses();
+      const classRes = await getClasses(selectedBranchId);
       console.log("classRes", classRes);
       let classes: any[] = [];
       if (classRes.success && Array.isArray(classRes.data)) {
@@ -374,7 +380,7 @@ export default function ClassRoutingEditPage() {
       setLoading(false);
     }
     loadClassesAndSettings();
-  }, []);
+  }, [selectedBranchId]);
 
   // Filter class options by selected academic year
   const filteredClassOptions = classOptions.filter(
@@ -405,7 +411,7 @@ export default function ClassRoutingEditPage() {
       );
       let branchId = null;
       if (selectedClass) {
-        const classObj = (await getClasses()).data as any[];
+        const classObj = (await getClasses(selectedBranchId)).data as any[];
         const foundClass = classObj.find((c: any) => c.id === classValue);
         branchId = foundClass?.branchId || null;
         setClassBranchId(branchId);
@@ -428,7 +434,7 @@ export default function ClassRoutingEditPage() {
         setSubjects([]);
       }
       // Fetch teachers for branch
-      const teacherRes = await getAllTeachers();
+      const teacherRes = await getAllTeachers(selectedBranchId);
       if (teacherRes.success && Array.isArray(teacherRes.data)) {
         setTeachers(
           teacherRes.data.map((t: any) => ({ value: t.id, label: t.name })),
@@ -438,7 +444,7 @@ export default function ClassRoutingEditPage() {
       }
     }
     fetchSubjectsAndTeachers();
-  }, [classValue]);
+  }, [classValue, selectedBranchId]);
 
   // Recompute time slots for each day when assignments or settings change
   useEffect(() => {
@@ -563,41 +569,40 @@ export default function ClassRoutingEditPage() {
       endTime = formEndTime;
     }
     const newKey = `${dialogData.day}|${startTime}-${endTime}`;
-    setAssignments((prev) => {
-      const updated = { ...prev };
-      // Remove any assignment for the old slot (if it exists)
-      Object.keys(updated).forEach((k) => {
-        if (k.startsWith(`${dialogData.day}|${startTime}-`)) {
-          delete updated[k];
-        }
-      });
-      updated[newKey] = {
-        subject: formSubject,
-        teacher: formTeacher,
-        classType: formClassType,
-        ...(formClassType !== "regular" && endTime ? { endTime } : {}),
-      };
-      return updated;
+    const newAssignments = { ...assignments };
+    // Remove any assignment for the old slot (if it exists)
+    Object.keys(newAssignments).forEach((k) => {
+      if (k.startsWith(`${dialogData.day}|${startTime}-`)) {
+        delete newAssignments[k];
+      }
     });
+    newAssignments[newKey] = {
+      subject: formSubject,
+      teacher: formTeacher,
+      classType: formClassType,
+      ...(formClassType !== "regular" && endTime ? { endTime } : {}),
+    };
+    setAssignments(newAssignments);
     setDialogOpen(false);
     setDialogData(null);
+    handleSaveRoutine(newAssignments);
   };
 
   // Helper to get current class object
   const currentClassObj = classOptions.find((c) => c.value === classValue);
 
   // Save routine handler
-  async function handleSaveRoutine() {
+  async function handleSaveRoutine(updatedAssignments?: Record<string, Assignment>) {
+    const activeAssignments = updatedAssignments || assignments;
     if (
       !classValue ||
       !yearValue ||
-      !classBranchId ||
-      Object.keys(assignments).length === 0
+      !classBranchId
     )
       return;
     setSaveLoading(true);
     // Find the full class object for schoolId/createdBy
-    const allClassesRes = await getClasses();
+    const allClassesRes = await getClasses(selectedBranchId);
     let schoolId = "";
     let createdBy = "";
     if (allClassesRes.success && Array.isArray(allClassesRes.data)) {
@@ -615,7 +620,7 @@ export default function ClassRoutingEditPage() {
       assignment: "ASSIGNMENT",
     };
     // Prepare slots
-    const slots = Object.entries(assignments).map(([key, value]) => {
+    const slots = Object.entries(activeAssignments).map(([key, value]) => {
       const [day, time] = key.split("|");
       const [startTime, endTime] = time.split("-");
       return {
@@ -907,11 +912,10 @@ export default function ClassRoutingEditPage() {
                                     className="absolute top-1 right-1 p-1 text-red-600 hover:bg-red-50 rounded-full z-10"
                                     type="button"
                                     onClick={() => {
-                                      setAssignments((prev) => {
-                                        const newAssignments = { ...prev };
-                                        delete newAssignments[key];
-                                        return newAssignments;
-                                      });
+                                      const newAssignments = { ...assignments };
+                                      delete newAssignments[key];
+                                      setAssignments(newAssignments);
+                                      handleSaveRoutine(newAssignments);
                                     }}
                                     title="Delete"
                                   >
@@ -1147,12 +1151,11 @@ export default function ClassRoutingEditPage() {
       </Card>
       <div className="mt-6 flex gap-4 items-center">
         <Button
-          onClick={handleSaveRoutine}
+          onClick={() => handleSaveRoutine()}
           disabled={
             saveLoading ||
             !classValue ||
-            !classBranchId ||
-            Object.keys(assignments).length === 0
+            !classBranchId
           }
         >
           {saveLoading ? "Saving..." : "Save Routine"}

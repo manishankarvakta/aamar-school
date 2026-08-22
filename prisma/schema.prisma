@@ -166,6 +166,7 @@ model Branch {
   updatedAt DateTime @updatedAt
   users     User[]
   classes   Class[]
+  books     Book[]
 
   @@unique([schoolId, code])
 }
@@ -309,19 +310,21 @@ model Parent {
 }
 
 model Staff {
-  id           String       @id @default(cuid())
-  aamarId      String
-  userId       String       @unique
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  designation  String
-  department   String
-  salary       Float?       @default(25000)
-  joiningDate  DateTime     @default(now())
-  workingHours String       @default("Full Time")
-  leaves       StaffLeave[]
-  attendance   Attendance[]
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id              String       @id @default(cuid())
+  aamarId         String
+  userId          String       @unique
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  designation     String
+  department      String
+  salary          Float?       @default(25000)
+  joiningDate     DateTime     @default(now())
+  workingHours    String       @default("Full Time")
+  permissions     Json         @default("{}")
+  allowedBranches String[]     @default([])
+  leaves          StaffLeave[]
+  attendance      Attendance[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 }
 
 model Attendance {
@@ -452,6 +455,8 @@ model Book {
   available  Int
   schoolId   String
   school     School          @relation(fields: [schoolId], references: [id])
+  branchId   String?
+  branch     Branch?         @relation(fields: [branchId], references: [id])
   borrowings BookBorrowing[]
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
@@ -639,6 +644,7 @@ model RoutineSlot {
   subjectId      String?
   teacherId      String?
   classType      ClassType
+  isLocked       Boolean       @default(false)
 
   classRoutine   ClassRoutine  @relation(fields: [classRoutineId], references: [id])
   subject        Subject?      @relation(fields: [subjectId], references: [id])
